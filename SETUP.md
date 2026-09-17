@@ -12,7 +12,7 @@ Once per machine:
 |------|---------|-----|
 | [Claude Code](https://claude.ai/claude-code) | per its docs | runs the factory |
 | Python 3.8+ and git 2.28+ | usually present | onboarding script; `git init -b main` |
-| [Render CLI](https://docs.render.com/cli) | `brew install render` then `render login` | infra worker deploys, reads logs, sets env vars |
+| [Render CLI](https://docs.render.com/cli) | `brew install render` (no `render login` needed — see API key below) | infra worker reads logs, restarts, lists services |
 | [GitHub CLI](https://cli.github.com) | `brew install gh` then `gh auth login` | onboarding creates + pushes the repo (optional, but the smooth path) |
 | [dev-browser](https://github.com/sawyerhood/dev-browser) | `npm install -g dev-browser` (then `dev-browser install` if it cannot find Chrome) | frontend worker screenshots the UI |
 
@@ -23,21 +23,19 @@ Accounts, one-time:
 - **Render** — three things in the Dashboard before the first project: a **payment method** (Billing; the generated blueprint uses paid `starter` services and a `basic-256mb` database, ≈ $20/month per project), **GitHub connected** (Account Settings → GitHub; Render must be able to read the repo the wizard creates), and an **API key** (next section).
 - **Clerk**, if you want auth. Create the application before running the wizard so you can paste its publishable + secret keys when asked; the provisioner sets them on the services.
 
-Verify Render is ready:
-```bash
-render workspace current -o json
-```
-This must print your workspace name and `tea-...` ID. A `401 Unauthorized` means the stored token has expired — run `render login` again.
+### Render API key (the credential)
 
-### Render API key (recommended)
+The factory authenticates to Render with a long-lived **API key**, never with the browser login. `render login` writes a token that expires after a few weeks and silently breaks autonomous runs; the API key does not expire.
 
-`render login` stores a token in `~/.render/cli.yaml` that **expires** after a while. Autonomous runs can outlive it, and then every Render command blocks mid-brief. A long-lived API key avoids that:
+1. Render Dashboard → your avatar → **Account Settings → API Keys → Create API Key**
+2. Store it once, machine-wide:
+   ```bash
+   python3 ~/software-factory/onboard.py --set-render-key
+   ```
+   It goes into the `env` block of `~/.claude/settings.json`. Claude Code injects that block into every session; the Render CLI honors `RENDER_API_KEY`; the factory's resolver reads it. `bootstrap.sh` asks for it if it is missing.
+3. Per-project override, if you ever need one: `.claude/settings.local.json` `{"env": {"RENDER_API_KEY": "rnd_..."}}` (gitignored). The wizard copies the machine key there so each project is self-contained.
 
-1. Render Dashboard → **Account Settings → API Keys → Create API Key**
-2. Paste it when the onboarding wizard asks (input is hidden). It goes into `.claude/settings.local.json` as `{"env": {"RENDER_API_KEY": "rnd_..."}}` — gitignored, and Claude Code injects it into every Bash call and hook in the project.
-3. Already onboarded? Add it to that file by hand, or `export RENDER_API_KEY=rnd_...` in your shell profile.
-
-Every Render call in the factory resolves the key through `.claude/scripts/render-api-key.sh` (environment → settings.local.json → `.env` → login token), so the CLI, direct API calls, and the workspace guard all use the same credential. Keys are per user; the guard still checks that the key can see the pinned workspace.
+Every Render call in the factory resolves the key through `.claude/scripts/render-api-key.sh` (environment → project settings.local.json → project `.env` → `~/.claude/settings.json` → login token), so the CLI, direct API calls, the provisioner, and the workspace guard all use the same credential. The workspace pin comes from the key's visible workspaces (or the CLI login if one exists); with several workspaces the wizard asks which one.
 
 ## Step 1: Run the Factory Onboarding
 

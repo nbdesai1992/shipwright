@@ -96,7 +96,13 @@ Non-developers: follow [GETTING-STARTED.md](GETTING-STARTED.md). Developers, the
 git clone https://github.com/nbdesai1992/software-factory.git ~/software-factory
 ```
 
-Render Dashboard, one time: add a **payment method** (Billing), **connect GitHub** (Account Settings → GitHub), and create an **API key** (Account Settings → API Keys). The `render login` token expires; the API key does not, and the wizard stores it gitignored in the project.
+Render Dashboard, one time: add a **payment method** (Billing), **connect GitHub** (Account Settings → GitHub), and create an **API key** (Account Settings → API Keys). Store the key once, machine-wide:
+
+```bash
+python3 ~/software-factory/onboard.py --set-render-key     # → ~/.claude/settings.json env block
+```
+
+That is the only Render credential the factory uses — CLI, API calls, hooks, every project. `render login` is never required (its browser token expires; it remains a fallback).
 
 ### Step 1–3: bootstrap → wizard → new repo
 

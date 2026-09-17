@@ -11,11 +11,14 @@ Usage:
     python onboard.py /path/to/project      # Setup in target dir (created if missing)
     python onboard.py --reconfigure         # Re-run with saved config
     python onboard.py --preflight [path]    # Only run the project's readiness check
+    python onboard.py --set-render-key      # Store a Render API key machine-wide (~/.claude/settings.json)
 """
 
 import getpass
 import json
 import os
+import urllib.error
+import urllib.request
 import re
 import shutil
 import subprocess
@@ -190,6 +193,74 @@ def ask_choice(prompt: str, choices: list, default: str = "") -> str:
         print(f"  Please enter a number 1-{len(choices)}")
 
 
+USER_SETTINGS = Path.home() / ".claude" / "settings.json"
+
+
+def user_settings_env(key: str) -> str:
+    """Read one value from the env block of ~/.claude/settings.json (machine-wide)."""
+    try:
+        return ((json.loads(USER_SETTINGS.read_text(encoding="utf-8")).get("env") or {}).get(key) or "").strip()
+    except (OSError, ValueError):
+        return ""
+
+
+def store_user_setting_env(key: str, value: str):
+    """Write one value into the env block of ~/.claude/settings.json.
+
+    Claude Code injects that block into every session on this machine, and
+    the factory's resolver reads it, so a Render API key stored here serves
+    every project without `render login`.
+    """
+    data = {}
+    if USER_SETTINGS.exists():
+        try:
+            data = json.loads(USER_SETTINGS.read_text(encoding="utf-8"))
+        except ValueError:
+            data = {}
+    data.setdefault("env", {})[key] = value
+    USER_SETTINGS.parent.mkdir(parents=True, exist_ok=True)
+    USER_SETTINGS.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+
+def detect_render_api_key() -> tuple:
+    """(key, source) from the machine: environment, then ~/.claude/settings.json."""
+    if os.environ.get("RENDER_API_KEY", "").strip():
+        return os.environ["RENDER_API_KEY"].strip(), "environment"
+    k = user_settings_env("RENDER_API_KEY")
+    if k:
+        return k, "~/.claude/settings.json"
+    return "", ""
+
+
+def render_api_owners(key: str):
+    """List workspaces visible to an API key. Returns list of (name, id), or None on auth/network failure."""
+    req = urllib.request.Request("https://api.render.com/v1/owners?limit=100",
+                                 headers={"Authorization": f"Bearer {key}", "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return [((o.get("owner") or {}).get("name", "").strip(), (o.get("owner") or {}).get("id", ""))
+                    for o in json.loads(r.read().decode("utf-8"))]
+    except (urllib.error.URLError, urllib.error.HTTPError, ValueError, OSError):
+        return None
+
+
+def set_render_key_interactive() -> int:
+    print("\n  Render API key → ~/.claude/settings.json (machine-wide; every project and every Claude Code session).")
+    print("  Create one at: Render Dashboard → your avatar → Account Settings → API Keys → Create API Key.")
+    key = ask_secret("  Paste the key (rnd_...): ")
+    if not key:
+        print("  Nothing stored.")
+        return 1
+    owners = render_api_owners(key)
+    if owners is None:
+        print("  ! Render rejected that key (or no network). Not stored.")
+        return 1
+    store_user_setting_env("RENDER_API_KEY", key)
+    print(f"  + stored. Workspaces visible to this key: " + ", ".join(f"'{n}' ({i})" for n, i in owners))
+    print("  You never need `render login` on this machine again.")
+    return 0
+
+
 def machine_preflight():
     """Report the tools a net-new user needs before anything else happens.
 
@@ -210,17 +281,17 @@ def machine_preflight():
     line(ok, out if ok else "git", "install git 2.28+")
 
     render_ok = shutil.which("render") is not None
-    line(render_ok, "render CLI", "brew install render && render login")
-    if render_ok:
+    line(render_ok, "render CLI", "brew install render")
+    api_key, key_source = detect_render_api_key()
+    if api_key:
+        line(True, f"Render API key ({key_source})")
+    else:
         name, ws_id = detect_render_workspace()
-        expired = render_token_expired()
-        if not name and not ws_id:
-            line(False, "render login (no ~/.render/cli.yaml workspace)", "render login")
-        elif expired:
-            line(False, f"render login token EXPIRED (workspace '{name}')",
-                 "render login  — or add a long-lived API key when asked below")
+        if (name or ws_id) and not render_token_expired():
+            line(True, f"render login → workspace '{name}' ({ws_id})  (browser token; expires — an API key is better)")
         else:
-            line(True, f"render login → workspace '{name}' ({ws_id})")
+            line(False, "Render credential (no API key; login token missing or expired)",
+                 "python3 onboard.py --set-render-key   (Dashboard → Account Settings → API Keys)")
 
     gh_ok = shutil.which("gh") is not None
     if gh_ok:
@@ -304,9 +375,40 @@ def ask_secret(prompt: str) -> str:
 
 
 def ask_render_api_key(config: ProjectConfig):
-    print("\n  The `render login` token expires. A long-lived API key keeps autonomous runs")
-    print("  working: Render Dashboard → Account Settings → API Keys → Create. Input is hidden.")
-    config.render_api_key_input = ask_secret("  Render API key (rnd_...; blank = rely on `render login`): ")
+    """Machine-wide key first (no question); otherwise ask, and offer to keep it machine-wide."""
+    key, source = detect_render_api_key()
+    if key:
+        print(f"\n  Render API key: found on this machine ({source}) — using it for this project.")
+        config.render_api_key_input = key
+        return
+    print("\n  Render needs an API key so the factory can create and manage your services.")
+    print("  Render Dashboard → your avatar → Account Settings → API Keys → Create API Key. Input is hidden.")
+    key = ask_secret("  Render API key (rnd_...; blank = fall back to `render login`): ")
+    config.render_api_key_input = key
+    if key and ask("  Remember it for every project on this machine (~/.claude/settings.json)? (y/n)", "y").lower() in ("y", "yes"):
+        store_user_setting_env("RENDER_API_KEY", key)
+        print("  + stored machine-wide")
+
+
+def choose_render_workspace(config: ProjectConfig):
+    """Pin the workspace: from the CLI login if present, else from the API key's visible owners."""
+    name, ws_id = detect_render_workspace()
+    if name or ws_id:
+        config.render_workspace, config.render_workspace_id = name, ws_id
+        print(f"\n  Render workspace: '{name}' ({ws_id}) — this project is pinned to it.")
+        return
+    key = getattr(config, "render_api_key_input", "")
+    owners = render_api_owners(key) if key else None
+    if not owners:
+        print("\n  No Render workspace detected (no API key that works, no `render login`). Pin later with --reconfigure.")
+        return
+    if len(owners) == 1:
+        config.render_workspace, config.render_workspace_id = owners[0]
+        print(f"\n  Render workspace: '{owners[0][0]}' ({owners[0][1]}) — this project is pinned to it.")
+        return
+    labels = [f"{n} ({i})" for n, i in owners]
+    chosen = ask_choice("Which Render workspace should this project live in? (ALL Render operations are locked to it)", labels, labels[0])
+    config.render_workspace, config.render_workspace_id = owners[labels.index(chosen)]
 
 
 def ask_clerk_keys(config: ProjectConfig):
@@ -358,13 +460,8 @@ def interview_quick() -> ProjectConfig:
     if login:
         ask_clerk_keys(config)
 
-    detected_name, detected_id = detect_render_workspace()
-    if detected_name or detected_id:
-        config.render_workspace, config.render_workspace_id = detected_name, detected_id
-        print(f"\n  Render workspace: '{detected_name}' ({detected_id}) — this project is pinned to it.")
-    else:
-        print("\n  No Render login found. Run `render login` before provisioning; the pin can be set later with --reconfigure.")
     ask_render_api_key(config)
+    choose_render_workspace(config)
     return config
 
 
@@ -433,25 +530,17 @@ def interview() -> ProjectConfig:
             "Render shared env group name (for API keys)", "general_builder_keys"
         )
 
-        detected_name, detected_id = detect_render_workspace()
-        if detected_name or detected_id:
-            print(f"\n  Render CLI is logged in to workspace: '{detected_name}' ({detected_id or 'no ID'})")
-            if ask("Pin this project to that workspace? (y/n)", "y").lower() in ("y", "yes"):
-                config.render_workspace = detected_name
-                config.render_workspace_id = detected_id
+        # API key (machine-wide if present), then the workspace pin from the
+        # CLI login or the key's visible owners. Never stored in
+        # factory-config.json; written to .claude/settings.local.json.
+        ask_render_api_key(config)
+        choose_render_workspace(config)
         if not config.render_workspace and not config.render_workspace_id:
-            print("  (No Render CLI login detected — run `render login` later. You can still pin by hand.)")
             config.render_workspace = ask(
-                "Render workspace NAME to pin (ALL Render ops blocked outside it; blank = no pin)"
+                "Render workspace NAME to pin by hand (ALL Render ops blocked outside it; blank = no pin)"
             )
             if config.render_workspace:
-                config.render_workspace_id = ask(
-                    "Render workspace ID (tea-...; from `render workspace current -o json`; blank = name only)"
-                )
-
-        # Long-lived API key (optional). Never stored in factory-config.json;
-        # written to .claude/settings.local.json (gitignored) by setup_project.
-        ask_render_api_key(config)
+                config.render_workspace_id = ask("Render workspace ID (tea-...; blank = name only)")
 
         config.push_policy = ask_choice(
             "Who pushes to deploy? 'human' = you review and git push (checkpoint); 'factory' = the runner pushes",
@@ -998,7 +1087,7 @@ def provision_render(config: ProjectConfig, target: Path, pushed: bool):
         return
     ok, source = run_cmd(["bash", str(target / ".claude" / "scripts" / "render-api-key.sh"), "--source"], target)
     if not ok or not source or source.strip() == "cli-token-EXPIRED":
-        print("    - skipped: no working Render credential (run `render login` or add an API key), then run:")
+        print("    - skipped: no working Render credential. Store an API key (python3 onboard.py --set-render-key), then run:")
         print("      python3 .claude/scripts/provision.py")
         return
     print("    Creating the database and web services on Render from render.yaml.")
@@ -1285,6 +1374,9 @@ def main():
         target = Path(args[0]).resolve()
     else:
         target = Path.cwd()
+
+    if "--set-render-key" in sys.argv:
+        sys.exit(set_render_key_interactive())
 
     if preflight_only:
         script = target / ".claude" / "scripts" / "preflight.py"

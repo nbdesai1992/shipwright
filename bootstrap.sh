@@ -50,11 +50,25 @@ else
   gh auth login || { say "GitHub login did not complete"; exit 1; }
 fi
 
-if render workspace current -o json >/dev/null 2>&1; then
-  say "[ok ] Render: logged in ($(python3 -c "import re;print(re.search(r\"workspace_name: '?([^'\n]*)\", open('$HOME/.render/cli.yaml').read()).group(1).strip())" 2>/dev/null))"
+# Render: an API key (no browser, never expires). Stored machine-wide in
+# ~/.claude/settings.json; the wizard, every project, and every Claude Code
+# session read it from there. `render login` is not needed.
+have_key() {
+  [ -n "${RENDER_API_KEY:-}" ] && return 0
+  python3 - <<'PY' 2>/dev/null
+import json, os, sys
+p = os.path.expanduser("~/.claude/settings.json")
+try:
+    sys.exit(0 if (json.load(open(p)).get("env") or {}).get("RENDER_API_KEY") else 1)
+except Exception:
+    sys.exit(1)
+PY
+}
+if have_key; then
+  say "[ok ] Render API key found"
 else
-  say "[...] Render login — your browser will open (this also refreshes an expired login)"
-  render login || { say "Render login did not complete"; exit 1; }
+  say "[...] Render API key — create one at Render Dashboard → your avatar → Account Settings → API Keys"
+  python3 "$HERE/onboard.py" --set-render-key || { say "No Render key stored. Re-run when you have one."; exit 1; }
 fi
 
 echo

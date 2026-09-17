@@ -3,14 +3,14 @@
 # onboarding into .claude/scripts/). Prints the key on stdout, nothing else.
 #
 # Resolution order (first hit wins):
-#   1. $RENDER_API_KEY already in the environment (shell profile, CI, or the
-#      "env" block of .claude/settings.local.json which Claude Code injects
-#      into every Bash call)
-#   2. .claude/settings.local.json → env.RENDER_API_KEY   (gitignored)
-#   3. ./.env → RENDER_API_KEY=...                         (gitignored)
-#   4. ~/.render/cli.yaml → api.key — the `render login` token. Works, but it
-#      EXPIRES (see api.expires_at); a long-lived key from the Render
-#      Dashboard (Account Settings → API Keys) is the durable option.
+#   1. $RENDER_API_KEY already in the environment (shell profile, CI, or an
+#      "env" block Claude Code injects into every Bash call)
+#   2. .claude/settings.local.json → env.RENDER_API_KEY   (this project; gitignored)
+#   3. ./.env → RENDER_API_KEY=...                         (this project; gitignored)
+#   4. ~/.claude/settings.json → env.RENDER_API_KEY       (this machine, every project —
+#      the recommended home; bootstrap.sh / onboard.py --set-render-key write it)
+#   5. ~/.render/cli.yaml → api.key — the `render login` browser token. Works,
+#      but it EXPIRES (see api.expires_at). Fallback only.
 #
 # Usage:
 #   export RENDER_API_KEY=$(.claude/scripts/render-api-key.sh)   # curl + CLI both use it
@@ -49,7 +49,17 @@ if [ -f .env ]; then
   [ -n "$k" ] && emit "$k" ".env"
 fi
 
-# 4. render login token
+# 4. ~/.claude/settings.json → env.RENDER_API_KEY (machine-wide)
+if [ -f "$HOME/.claude/settings.json" ]; then
+  k=$(python3 -c 'import json,os
+try:
+    print((json.load(open(os.path.expanduser("~/.claude/settings.json"))).get("env") or {}).get("RENDER_API_KEY",""))
+except Exception:
+    print("")' 2>/dev/null)
+  [ -n "$k" ] && emit "$k" "user-settings"
+fi
+
+# 5. render login token
 CLI_CFG="$HOME/.render/cli.yaml"
 if [ -f "$CLI_CFG" ]; then
   k=$(python3 -c 'import re,sys,time

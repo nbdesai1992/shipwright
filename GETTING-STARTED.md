@@ -21,7 +21,7 @@ You will create accounts on three websites. Each takes a few minutes. Have them 
 - Sign up at [render.com](https://render.com).
 - **Add a payment method:** Dashboard → your workspace name (top left) → **Billing**. The factory creates two small web services and one database. Expect roughly **$20 a month** while the project exists. You can delete everything from the Dashboard at any time.
 - **Connect GitHub to Render:** Dashboard → your avatar (top right) → **Account Settings → GitHub → Connect**. Grant access to all repositories, or come back after step 2 below and grant access to the new one. Render cannot read your code without this.
-- **Create an API key:** Dashboard → your avatar → **Account Settings → API Keys → Create API Key**. Copy it somewhere safe; the wizard asks for it. This is what lets the factory manage your services without you clicking around the Dashboard.
+- **Create an API key:** Dashboard → your avatar (top right) → **Account Settings → API Keys → Create API Key**. Copy it; the bootstrap asks for it once and remembers it for every project on your computer. This is the only credential the factory needs — there is no separate login step.
 
 ### 3. Clerk — only if people will sign in to your app
 - Sign up at [clerk.com](https://clerk.com). Free to start.
@@ -42,7 +42,8 @@ git clone https://github.com/nbdesai1992/software-factory.git ~/software-factory
 Replace `my-app` with a short name for your project (lowercase, dashes instead of spaces). The bootstrap installs the tools the factory needs and logs you in:
 
 - If it says Homebrew is missing, install it from [brew.sh](https://brew.sh) (one paste), then run the bootstrap again.
-- When your browser opens asking you to log in to **GitHub** and then **Render**, approve both and return to the Terminal.
+- When your browser opens asking you to log in to **GitHub**, approve it and return to the Terminal.
+- When it asks for your **Render API key**, paste the key you created (typing is hidden). It is stored once, machine-wide.
 
 It then starts the wizard automatically.
 
@@ -57,7 +58,6 @@ Press Enter to accept the first question's default (Quick Start). Then:
 | Who is it for, or what world does it live in? | `freelancers sending invoices` |
 | Will people need to sign in with an account? | `y` if your app has user accounts, otherwise `n` |
 | Clerk keys (only if you said y) | paste the two keys from Clerk. Typing is hidden. |
-| Render API key | paste the key you created. Typing is hidden. |
 
 Then say **yes** to each of: create the GitHub repo, commit, push, and create the Render services. The last one takes a couple of minutes while Render sets up the database. When it finishes you will see two web addresses ending in `onrender.com`. Those are your app. Right now they show a placeholder page.
 
@@ -107,7 +107,7 @@ The three most common causes:
 
 | What you see | What it means | Fix |
 |--------------|---------------|-----|
-| `Render rejected the key (401)` or `token has EXPIRED` | Render no longer trusts the login | Run `render login`, or create a new API key and paste it into `.claude/settings.local.json` where the old one is |
+| `Render rejected the key (401)` | The API key was deleted or is wrong | Create a new one in the Render Dashboard and run `python3 ~/software-factory/onboard.py --set-render-key` |
 | `could not create service … repo` | Render cannot see your GitHub repo | Render Dashboard → Account Settings → GitHub → grant access to the repo, then `python3 .claude/scripts/provision.py` |
 | `402` or `403` when creating a database or service | No payment method on the Render workspace | Render Dashboard → Billing, then `python3 .claude/scripts/provision.py` |
 
