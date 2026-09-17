@@ -19,6 +19,18 @@ render workspace current -o json
 ```
 If it doesn't match **{{RENDER_WORKSPACE}}**, run `render workspace set {{RENDER_WORKSPACE_SET_TARGET}}`. If that fails (e.g. `401 Unauthorized` — the stored login token has expired), raise an `external-action` blocker asking the human to run `render login`; there is no way to re-authenticate from inside a worker. NEVER operate in any other workspace — services would be created or modified in the wrong account. Do not edit or delete `.claude/render-workspace` to get around a block.
 
+## Authentication: One Resolver, Two Kinds of Credential
+
+Every Render call — CLI or curl — starts with:
+```bash
+export RENDER_API_KEY=$(.claude/scripts/render-api-key.sh)
+```
+The `export` matters: the Render CLI also honors `RENDER_API_KEY`, so one line makes both `render services list` and `curl api.render.com` work in the same shell without a fresh `render login`.
+
+The resolver looks, in order, at: `$RENDER_API_KEY` already in the environment (Claude Code injects the `env` block of `.claude/settings.local.json` into every Bash call), `.claude/settings.local.json`, the project `.env`, and finally the `render login` token in `~/.render/cli.yaml`. Only the first three are long-lived; the login token **expires** and a long run can outlive it. `.claude/scripts/render-api-key.sh --source` tells you which one is in use (`cli-token-EXPIRED` means exactly that).
+
+If a call returns `401 Unauthorized`: do not retry, do not try other credentials. Raise an `external-action` blocker: "Render credential expired or missing — run `render login`, or add a long-lived API key (Render Dashboard → Account Settings → API Keys) to the `env` block of `.claude/settings.local.json`." `/preflight` reports this before any run starts.
+
 ## render.yaml Is the Source of Truth
 
 `render.yaml` MUST be the **complete, authoritative declaration** of all service configuration:
@@ -38,7 +50,7 @@ If it doesn't match **{{RENDER_WORKSPACE}}**, run `render workspace set {{RENDER
 Before any code work begins, audit the live Render state against render.yaml:
 
 ```bash
-RENDER_API_KEY=$(grep 'key:' ~/.render/cli.yaml | head -1 | awk '{print $2}')
+export RENDER_API_KEY=$(.claude/scripts/render-api-key.sh)   # see "Authentication" below
 
 # 1. Pull actual env vars for each service
 curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
@@ -152,7 +164,7 @@ The CLI doesn't cover everything. Use the Render API (`https://api.render.com/v1
 
 ```bash
 # Helper: extract API key from CLI config
-RENDER_API_KEY=$(grep 'key:' ~/.render/cli.yaml | head -1 | awk '{print $2}')
+export RENDER_API_KEY=$(.claude/scripts/render-api-key.sh)   # see "Authentication" below
 
 # Example: list all services
 curl -s -H "Authorization: Bearer $RENDER_API_KEY" https://api.render.com/v1/services
@@ -229,7 +241,7 @@ For the full blueprint schema, service types, and advanced patterns, see [bluepr
 ### Verification sequence (for EVERY service after a push):
 
 ```bash
-RENDER_API_KEY=$(grep 'key:' ~/.render/cli.yaml | head -1 | awk '{print $2}')
+export RENDER_API_KEY=$(.claude/scripts/render-api-key.sh)   # see "Authentication" below
 
 # 1. Get the latest deploy — check status AND commit SHA
 curl -s -H "Authorization: Bearer $RENDER_API_KEY" \

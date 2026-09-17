@@ -20,7 +20,17 @@ Verify Render is ready:
 ```bash
 render workspace current -o json
 ```
-This must print your workspace name and `tea-...` ID. A `401 Unauthorized` means the stored token has expired — run `render login` again. `render login` writes `~/.render/cli.yaml`, which holds the API key the deploy skill uses for direct API calls (env vars, deploy status, metrics); there is no separate API key to configure.
+This must print your workspace name and `tea-...` ID. A `401 Unauthorized` means the stored token has expired — run `render login` again.
+
+### Render API key (recommended)
+
+`render login` stores a token in `~/.render/cli.yaml` that **expires** after a while. Autonomous runs can outlive it, and then every Render command blocks mid-brief. A long-lived API key avoids that:
+
+1. Render Dashboard → **Account Settings → API Keys → Create API Key**
+2. Paste it when the onboarding wizard asks (input is hidden). It goes into `.claude/settings.local.json` as `{"env": {"RENDER_API_KEY": "rnd_..."}}` — gitignored, and Claude Code injects it into every Bash call and hook in the project.
+3. Already onboarded? Add it to that file by hand, or `export RENDER_API_KEY=rnd_...` in your shell profile.
+
+Every Render call in the factory resolves the key through `.claude/scripts/render-api-key.sh` (environment → settings.local.json → `.env` → login token), so the CLI, direct API calls, and the workspace guard all use the same credential. Keys are per user; the guard still checks that the key can see the pinned workspace.
 
 ## Step 1: Run the Factory Onboarding
 
@@ -38,7 +48,9 @@ The wizard asks about your project (name, description, domain, design direction,
 - `.claude/agents/` — 3 worker agent definitions (backend, frontend, infra)
 - `.claude/settings.json` — Permissions + hook wiring
 - `.claude/hooks/` — brief-progress-guard, trajectory-log, render-workspace-guard
+- `.claude/scripts/` — `render-api-key.sh` (credential resolver) and `preflight.py` (readiness check)
 - `.claude/render-workspace` — the workspace pin
+- `.claude/settings.local.json` — your `RENDER_API_KEY` if you provided one (gitignored)
 - `CLAUDE.md` — Project context, architecture, deployed URLs
 - `render.yaml` — Render blueprint defining your services + database
 - `.gitignore` — `session/`, `.env`, `.env.local`, `.claude/settings.local.json`, `.claude/.turn-marker`
@@ -91,7 +103,17 @@ This is a one-time manual step. Render does not support creating Blueprint Insta
 
 **Important:** The infra-worker will never create services via API. It only verifies that services exist (created by you here) and uses them for deployments, logs, and health checks. If you skip this step, the orchestrator will raise a blocker asking you to do it.
 
-## Step 3: Open Claude Code
+## Step 3: Preflight
+
+```bash
+python3 .claude/scripts/preflight.py      # from the project directory
+```
+
+One line per check, `[PASS]` / `[WARN]` / `[FAIL]`, with a fix under every FAIL. It covers local tools (render, gh, dev-browser, node), the git remote, the Render credential and whether it has expired, the workspace pin, and then compares `render.yaml` against live Render: env group present, every service and database exists, `sync: false` secrets have values, health endpoints answer. It changes nothing.
+
+Fix every FAIL before continuing. WARNs are informational (unpushed commits, URLs the infra-worker will fill in). The runner also runs this check automatically the first time it pulls a brief, and parks any FAIL as a blocker instead of spawning a worker into a wall. Inside Claude Code the same check is `/preflight`.
+
+## Step 4: Open Claude Code
 
 ```bash
 claude
@@ -99,7 +121,7 @@ claude
 
 Open Claude Code in your project directory. It will load CLAUDE.md and all the installed skills.
 
-## Step 4: Create a Goal Brief
+## Step 5: Create a Goal Brief
 
 ```
 /spec create "describe what you want to build"
@@ -107,7 +129,7 @@ Open Claude Code in your project directory. It will load CLAUDE.md and all the i
 
 The spec skill interviews you about features, scope, constraints, and success criteria, then writes a goal brief to `briefs/1-backlog/` and hands you a ready-to-paste `/goal` prompt. Review and approve the brief.
 
-## Step 5: Run It
+## Step 6: Run It
 
 Paste the `/goal` prompt the spec skill gave you — Claude Code keeps running turns until the brief reaches a terminal folder (`briefs/4-done/` complete, or `briefs/3-blocked/` needs your input). Or run one turn at a time:
 
@@ -124,7 +146,7 @@ Either way, the runner takes over:
 5. **Deploy frontend** — Commits code, asks you to `git push`. Render auto-deploys.
 6. **Verify** — Screenshots the deployed site, checks against requirements
 
-## Step 6: Check Progress
+## Step 7: Check Progress
 
 At any time:
 

@@ -2,6 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(dev-browser *)",
+      "Bash(python3 .claude/scripts/preflight.py*)",
+      "Bash(.claude/scripts/render-api-key.sh*)",
       "Bash(ls briefs/*)",
       "Bash(mv briefs/*)",
       "Bash(mkdir -p session/*)"

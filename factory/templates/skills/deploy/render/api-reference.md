@@ -5,8 +5,9 @@
 **Pagination:** Cursor-based. Params: `limit` (default 20, max 100), `cursor` (from previous response).
 
 ```bash
-# Extract API key from CLI config
-RENDER_API_KEY=$(grep 'key:' ~/.render/cli.yaml | head -1 | awk '{print $2}')
+# Resolve the API key (long-lived key from settings.local.json / .env / env,
+# falling back to the `render login` token — see SKILL.md "Authentication")
+export RENDER_API_KEY=$(.claude/scripts/render-api-key.sh)
 
 # Usage pattern
 curl -s -H "Authorization: Bearer $RENDER_API_KEY" \

@@ -10,8 +10,10 @@ Usage:
     python onboard.py                       # Setup in current directory
     python onboard.py /path/to/project      # Setup in target dir (created if missing)
     python onboard.py --reconfigure         # Re-run with saved config
+    python onboard.py --preflight [path]    # Only run the project's readiness check
 """
 
+import getpass
 import json
 import os
 import re
@@ -90,6 +92,12 @@ HOOK_FILES = [
     "render-workspace-guard.sh",
 ]
 
+# Helper scripts installed into .claude/scripts/ — (template name, installed name)
+SCRIPT_FILES = [
+    ("render-api-key.sh", "render-api-key.sh"),   # copied as-is
+    ("preflight.py.tpl", "preflight.py"),         # rendered with project config
+]
+
 # Smart defaults by framework
 FRAMEWORK_DEFAULTS = {
     "react":       {"port": 5173, "command": "npm run dev"},
@@ -131,6 +139,86 @@ def ask_choice(prompt: str, choices: list, default: str = "") -> str:
             if raw in choices:
                 return raw
         print(f"  Please enter a number 1-{len(choices)}")
+
+
+def machine_preflight():
+    """Report the tools a net-new user needs before anything else happens.
+
+    Non-blocking: the wizard continues either way, but a missing tool is
+    much cheaper to learn about here than from a blocked brief. The
+    per-project check (.claude/scripts/preflight.py, /preflight) covers the
+    Render-side state after onboarding.
+    """
+    print()
+    print("  --- Machine check ---")
+
+    def line(ok, label, fix=""):
+        mark = "ok " if ok else "MISSING"
+        print(f"    [{mark}] {label}" + (f"  → {fix}" if fix and not ok else ""))
+
+    line(True, f"python {sys.version.split()[0]}")
+    ok, out = run_cmd(["git", "--version"], Path.cwd())
+    line(ok, out if ok else "git", "install git 2.28+")
+
+    render_ok = shutil.which("render") is not None
+    line(render_ok, "render CLI", "brew install render && render login")
+    if render_ok:
+        name, ws_id = detect_render_workspace()
+        expired = render_token_expired()
+        if not name and not ws_id:
+            line(False, "render login (no ~/.render/cli.yaml workspace)", "render login")
+        elif expired:
+            line(False, f"render login token EXPIRED (workspace '{name}')",
+                 "render login  — or add a long-lived API key when asked below")
+        else:
+            line(True, f"render login → workspace '{name}' ({ws_id})")
+
+    gh_ok = shutil.which("gh") is not None
+    if gh_ok:
+        auth_ok, _ = run_cmd(["gh", "auth", "status"], Path.cwd())
+        line(auth_ok, "gh CLI authenticated" if auth_ok else "gh CLI (not logged in)", "gh auth login")
+    else:
+        line(False, "gh CLI (optional — repo creation)", "brew install gh && gh auth login")
+
+    line(shutil.which("dev-browser") is not None, "dev-browser (frontend screenshots)",
+         "npm install -g dev-browser")
+    node_ok = shutil.which("node") is not None
+    if node_ok:
+        _, ver = run_cmd(["node", "--version"], Path.cwd())
+        line(True, f"node {ver}")
+    else:
+        line(False, "node (local frontend dev server)", "install Node 18+")
+    print()
+
+
+def render_token_expired() -> bool:
+    cfg = Path.home() / ".render" / "cli.yaml"
+    if not cfg.exists():
+        return False
+    import time
+    for line in cfg.read_text(encoding="utf-8").splitlines():
+        m = re.match(r"^\s+expires_at:\s*(\d+)", line)
+        if m:
+            return int(m.group(1)) < time.time()
+    return False
+
+
+def write_local_secret(claude_dir: Path, key: str, value: str):
+    """Merge one env var into .claude/settings.local.json (gitignored).
+
+    Claude Code injects the file's "env" block into every Bash call and
+    hook, so RENDER_API_KEY placed here reaches the CLI, curl, and the
+    workspace guard without touching the user's shell profile.
+    """
+    path = claude_dir / "settings.local.json"
+    data = {}
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except ValueError:
+            data = {}
+    data.setdefault("env", {})[key] = value
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
 def detect_render_workspace() -> tuple:
@@ -237,6 +325,17 @@ def interview() -> ProjectConfig:
                 config.render_workspace_id = ask(
                     "Render workspace ID (tea-...; from `render workspace current -o json`; blank = name only)"
                 )
+
+        # Long-lived API key (optional). Never stored in factory-config.json;
+        # written to .claude/settings.local.json (gitignored) by setup_project.
+        print("\n  The `render login` token expires. A long-lived API key keeps autonomous runs")
+        print("  working: Render Dashboard → Account Settings → API Keys → Create. Input is hidden.")
+        prompt = "  Render API key (rnd_...; blank = rely on `render login`): "
+        try:
+            key = (getpass.getpass(prompt) if sys.stdin.isatty() else input(prompt)).strip()
+        except (EOFError, KeyboardInterrupt):
+            key = ""
+        config.render_api_key_input = key  # not a dataclass field → excluded from asdict()
 
     # ── Authentication ──
     print("\n  --- Authentication ---")
@@ -841,6 +940,34 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
         dest.chmod(0o755)
         print(f"    + .claude/hooks/{hook_name}")
 
+    # Helper scripts: API-key resolver (as-is) + preflight (rendered)
+    scripts_src = templates / "scripts"
+    scripts_dir = claude_dir / "scripts"
+    scripts_dir.mkdir(parents=True, exist_ok=True)
+    for tpl_name, out_name in SCRIPT_FILES:
+        src = scripts_src / tpl_name
+        if not src.exists():
+            print(f"    ! missing script template: {tpl_name}")
+            continue
+        dest = scripts_dir / out_name
+        if tpl_name.endswith(".tpl"):
+            dest.write_text(render_template(src.read_text(encoding="utf-8"), replacements), encoding="utf-8")
+        else:
+            shutil.copy2(src, dest)
+        dest.chmod(0o755)
+        print(f"    + .claude/scripts/{out_name}")
+
+    # Preflight skill (/preflight wraps the script above)
+    preflight_tpl = templates / "skills" / "preflight" / "SKILL.md.tpl"
+    if preflight_tpl.exists():
+        render_file(preflight_tpl, skills_dir / "preflight" / "SKILL.md", replacements)
+
+    # Long-lived Render API key → .claude/settings.local.json (gitignored)
+    api_key = getattr(config, "render_api_key_input", "")
+    if config.deploy_platform == "render" and api_key:
+        write_local_secret(claude_dir, "RENDER_API_KEY", api_key)
+        print(f"    + .claude/settings.local.json (RENDER_API_KEY — gitignored, injected into every Bash call)")
+
     # Workspace pin — the render-workspace-guard hook fail-closes Render
     # CLI/API commands unless the current workspace matches a line in this
     # file. Name AND ID are written when known (names can carry whitespace).
@@ -919,18 +1046,23 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
   Your project is now configured with the orchestration system.
 
   Next steps:
-    1. cd {target}
-    2. Open Claude Code
-    3. Run:  /spec create "describe what you want to build"
-    4. Review and approve the brief — it lands in briefs/1-backlog/
-    5. Paste the generated /goal prompt (autonomous, runs until the brief
+    1. Render Dashboard (one-time): create the env group, then
+       Blueprints → New Blueprint Instance → select this repo (SETUP.md Step 2)
+    2. cd {target}
+    3. Check readiness:  python3 .claude/scripts/preflight.py
+       (or /preflight inside Claude Code) — fix every FAIL line
+    4. Open Claude Code
+    5. Run:  /spec create "describe what you want to build"
+    6. Review and approve the brief — it lands in briefs/1-backlog/
+    7. Paste the generated /goal prompt (autonomous, runs until the brief
        reaches briefs/4-done/ or briefs/3-blocked/) — or run /orchestrate
        manually one turn at a time
-    6. Use:  /status  at any time to see the board
-    7. If a brief lands in briefs/3-blocked/ it NEEDS YOU: answer its
+    8. Use:  /status  at any time to see the board
+    9. If a brief lands in briefs/3-blocked/ it NEEDS YOU: answer its
        Resolution: lines, then run /orchestrate to resume
 
   Skills installed:
+    - /preflight     Readiness check: tools, git, Render auth, services, secrets
     - /spec          Create goal briefs + their /goal prompts
     - /orchestrate   Board runner: decompose, delegate to subagents, route
     - /status        Board diagnostic: progress, blockers, requirements
@@ -949,11 +1081,6 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
     - backend-worker   {'Installed' if config.backend_framework != 'none' else 'Skipped (no backend)'}
     - frontend-worker  {'Installed' if config.frontend_framework != 'none' else 'Skipped (no frontend)'}
     - infra-worker     {'Installed' if config.deploy_platform != 'none' else 'Skipped (no deploy platform)'}
-
-  Before the first run, make sure these are in place (see SETUP.md):
-    - render CLI logged in:  render workspace current -o json
-    - dev-browser installed: npm install -g dev-browser   (frontend screenshots)
-    - Render env group + Blueprint Instance created in the Dashboard
 
   See docs/HUMAN-INTERVENTION-GUIDE.md in the software-factory
   repo for when you'll need to step in during orchestration.
@@ -976,12 +1103,22 @@ def main():
 
     # Determine target directory
     reconfigure = "--reconfigure" in sys.argv
+    preflight_only = "--preflight" in sys.argv
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
 
     if args:
         target = Path(args[0]).resolve()
     else:
         target = Path.cwd()
+
+    if preflight_only:
+        script = target / ".claude" / "scripts" / "preflight.py"
+        if not script.exists():
+            print(f"  No preflight script at {script} — onboard the project first.")
+            sys.exit(1)
+        sys.exit(subprocess.call([sys.executable, str(script)], cwd=str(target)))
+
+    machine_preflight()
 
     if not target.exists():
         print(f"\n  Target directory does not exist: {target}")

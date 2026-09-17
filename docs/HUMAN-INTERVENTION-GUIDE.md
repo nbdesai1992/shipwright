@@ -20,11 +20,11 @@ You can check for blockers at any time with `/status blockers`.
 
 **Symptom:** Blocker with type `external-action`, message about authentication failure or missing credentials.
 
-**What to do:** Run `! render login` in the Claude Code prompt (the `!` prefix runs it interactively). This opens a browser for OAuth. After login, the CLI stores a token at `~/.render/cli.yaml`; the deploy skill reads the API key from that file for direct API calls, so there is no separate key to set. Then write "logged in" on the blocker's `Resolution:` line and run `/orchestrate`.
+**What to do:** Either run `! render login` in the Claude Code prompt (the `!` prefix runs it interactively; opens a browser, stores a token that expires), or — the durable fix — create a long-lived API key (Render Dashboard → Account Settings → API Keys) and put it in the `env` block of `.claude/settings.local.json` as `RENDER_API_KEY`. Then write "credential set" on the blocker's `Resolution:` line and run `/orchestrate`.
 
-Tokens expire. If `render workspace current -o json` prints `401 Unauthorized`, the fix is the same `render login`.
+Every Render call in the factory goes through `.claude/scripts/render-api-key.sh`, which prefers the long-lived key and falls back to the login token; `--source` tells you which one is in use and whether the token has expired.
 
-**Prevention:** Log in before the first run and confirm `render workspace current -o json` prints your workspace.
+**Prevention:** Run `/preflight` before the first run. It reports the credential source, whether it has expired, and whether it can see the pinned workspace.
 
 #### Render Setup (do this once before your first run with deployment tasks)
 
@@ -202,10 +202,10 @@ To get the smoothest autonomous run:
 
 ### Render Pre-Flight Checklist
 
-Do this **once** before your first run:
+Run `/preflight` (or `python3 .claude/scripts/preflight.py`). It checks all of this and prints a fix under every failure:
 
-- [ ] `render` CLI installed and `render workspace current -o json` prints your workspace (no `401`)
-- [ ] The workspace it prints matches `.claude/render-workspace` in the project (the guard hook blocks every Render command otherwise)
+- [ ] `render` CLI installed; a Render credential that works (long-lived `RENDER_API_KEY`, or a `render login` token that has not expired)
+- [ ] The credential can see the workspace pinned in `.claude/render-workspace`, and the CLI's current workspace matches it (the guard hook blocks every Render command otherwise)
 - [ ] `dev-browser` installed (`npm install -g dev-browser`) if the project has a frontend
 - [ ] `render.yaml` exists in repo root (generated during onboarding)
 - [ ] Git repo created, committed, and pushed to GitHub
@@ -215,7 +215,7 @@ Do this **once** before your first run:
   - The skeleton apps deploy on the first build; both `/health` endpoints should return `{"status": "ok"}`
 - [ ] `sync: false` env vars (Clerk keys) set in the Render Dashboard
 
-After this setup, deploys happen through your `git push` — Render auto-deploys on commit, and the infra-worker verifies each deploy went live. The factory never creates services and never pushes on its own.
+The runner also runs preflight the first time it pulls a brief from the backlog and parks any failure as a blocker with the same fix text. After this setup, deploys happen through your `git push` — Render auto-deploys on commit, and the infra-worker verifies each deploy went live. The factory never creates services and never pushes on its own.
 
 2. **Write detailed specs:**
    - The more specific your acceptance criteria, the fewer `unclear-requirement` blockers

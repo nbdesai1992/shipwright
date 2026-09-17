@@ -43,6 +43,7 @@ That's it. The factory handles decomposition, coding, testing, visual design, an
 | **deploy** | Full Render operations — CLI commands, API reference, blueprint schema, debugging playbooks |
 | **worker-protocol** | Shared conventions for all worker subagents — read/write boundaries, blocker escalation, interface contracts, structured final reports |
 | **status** | Board diagnostics — progress, blockers, requirement coverage, trajectory audit trail |
+| **preflight** | Read-only readiness check — runs `.claude/scripts/preflight.py` and explains every failure with its fix |
 
 ### Worker Agents
 
@@ -66,8 +67,9 @@ your-project/
     ├── settings.json       # Permissions + hooks wiring
     ├── hooks/              # brief-progress-guard (enforced docs), trajectory-log,
     │                       #   render-workspace-guard (fail-closed workspace pin)
+    ├── scripts/            # render-api-key.sh (credential resolver), preflight.py
     ├── agents/             # 3 worker subagent definitions
-    └── skills/             # 8 skills (orchestration + development + deployment)
+    └── skills/             # 9 skills (orchestration + development + deployment + preflight)
 ```
 
 ## Usage
@@ -83,7 +85,7 @@ gh auth login
 npm install -g dev-browser      # headless browser the frontend worker uses for screenshots
 ```
 
-Plus [Claude Code](https://claude.ai/claude-code), Python 3.8+, and git 2.28+. Verify Render is ready with `render workspace current -o json` — if it prints `401 Unauthorized`, run `render login` again (tokens expire).
+Plus [Claude Code](https://claude.ai/claude-code), Python 3.8+, and git 2.28+. The `render login` token expires, so also create a long-lived API key (Render Dashboard → Account Settings → API Keys) and have it ready — the wizard asks for it and stores it gitignored.
 
 ### Step 1: Clone the factory (once)
 
@@ -110,12 +112,14 @@ The directory doesn't need to exist — the wizard offers to create it. It asks 
 
 Render cannot create Blueprint Instances from the API or CLI, so this step is always yours. The infra worker verifies the services exist and uses them; it never creates them.
 
-### Step 4: Build
+### Step 4: Preflight, then build
 
 ```bash
-claude   # Open Claude Code in your project
+python3 .claude/scripts/preflight.py   # tools, git, Render credential, workspace, services, secrets — fix every FAIL
+claude                                  # Open Claude Code in your project
 
 # Inside Claude Code:
+/preflight                              # same check, explained
 /spec create "build an invoice tracker for freelancers"
 # Answer a few questions about features, scope, constraints...
 # The spec skill writes the brief and hands you a /goal prompt — paste it:
@@ -172,6 +176,7 @@ The runner provisions infrastructure, writes backend code tested against your re
 
 | Command | Description |
 |---------|-------------|
+| `/preflight` | Readiness check: tools, git remote, Render credential + workspace, services/database/env group vs `render.yaml`, secrets |
 | `/spec create "goal"` | Interview → goal brief in `1-backlog/` + ready-to-paste `/goal` prompt |
 | `/spec update {id}` | Modify a brief's requirements (active briefs re-plan next turn) |
 | `/spec show` | Render the board; add a brief ID for its full detail |

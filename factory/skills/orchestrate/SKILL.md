@@ -24,6 +24,8 @@ Check the board in this order (`ls briefs/*/`):
 
 **WIP limit is 1.** If `2-active/` already has a brief and `$ARGUMENTS` names a different one, refuse and say which brief is active.
 
+**Preflight gate (when pulling from `1-backlog/` and `.claude/scripts/preflight.py` exists):** run `python3 .claude/scripts/preflight.py` before decomposing. It is read-only and takes seconds. For every `[FAIL]` line in the Render sections (credential, workspace pin, missing services/database/env group, unset secrets), record an `external-action` blocker on the brief with the script's `→ fix` text verbatim, mark the infra subtasks that depend on it blocked, and continue with everything else — do not spawn an infra-worker to rediscover the same failure. Tool failures (`dev-browser` missing) block frontend subtasks the same way. `[WARN]` lines go in the Progress Log, nothing more. Do not re-run preflight on resume turns unless a Render command fails.
+
 Ensure the workspace exists: `mkdir -p session/{brief-id}`. Machine state (trajectory files) lives there; it never moves and is gitignored. The brief file itself is the single source of truth for status.
 
 ## Phase 1: Decompose (only if Task Breakdown is empty or being re-planned)
