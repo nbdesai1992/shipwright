@@ -3,10 +3,11 @@
     "allow": [
       "Bash(dev-browser *)",
       "Bash(python3 .claude/scripts/preflight.py*)",
+      "Bash(python3 .claude/scripts/provision.py*)",
       "Bash(.claude/scripts/render-api-key.sh*)",
       "Bash(ls briefs/*)",
       "Bash(mv briefs/*)",
-      "Bash(mkdir -p session/*)"
+      "Bash(mkdir -p session/*)"{{QUICKSTART_PERMISSIONS}}
     ]
   },
   "hooks": {

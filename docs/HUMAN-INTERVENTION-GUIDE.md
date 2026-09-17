@@ -38,13 +38,13 @@ Every Render call in the factory goes through `.claude/scripts/render-api-key.sh
 
 ### 2. Database Provisioning
 
-**When:** The infra-worker's first task audits Render and finds the services or database declared in `render.yaml` do not exist.
+**When:** The infra-worker's first task runs `provision.py` and it fails.
 
-**Symptom:** Blocker of type `external-action` asking you to create the Blueprint Instance.
+**Symptom:** Blocker of type `external-action` carrying the provisioner's `[FAIL]` line and its `→ fix`.
 
-**What to do:** Render Dashboard → **Blueprints → New Blueprint Instance → select your repo**. Render reads `render.yaml` and creates the API service, frontend service, and Postgres database (a paid `basic-256mb` plan — it persists, unlike the free tier's 30-day expiry). The infra-worker never creates services or databases itself; it only verifies and uses what the blueprint created. Once the services show up, write "created" on the `Resolution:` line and run `/orchestrate`.
+**What to do:** The fix text names one of three account-level causes: no payment method on the Render workspace (Dashboard → Billing), Render cannot read the repo (Dashboard → Account Settings → GitHub → grant access), or an expired credential (`render login` or a new API key). Do that, then re-run `python3 .claude/scripts/provision.py` yourself or write "fixed" on the `Resolution:` line and run `/orchestrate` — the infra-worker re-runs it. Nobody creates services by hand; the provisioner is the only path, and it is idempotent.
 
-**Prevention:** Create the Blueprint Instance right after onboarding pushes the repo — SETUP.md Step 2c.
+**Prevention:** The wizard runs the provisioner at onboarding. If it succeeded then, this blocker does not occur.
 
 ---
 
@@ -55,14 +55,15 @@ Every Render call in the factory goes through `.claude/scripts/render-api-key.sh
 **Symptom:** Blocker with type `external-action`, message about missing `CLERK_SECRET_KEY` or `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`. Or the infra-worker's state audit flags them as empty (declared as `sync: false` but no value set).
 
 **What to do:**
-1. Go to [clerk.com](https://clerk.com) → your application (or create one)
-2. Copy the Publishable Key and Secret Key
-3. In Render Dashboard, set on the appropriate services:
-   - Frontend: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`
-   - Backend: `CLERK_SECRET_KEY`
-4. Write "keys set" on the blocker's `Resolution:` line and run `/orchestrate`
+1. Go to [clerk.com](https://clerk.com) → your application (or create one) → API Keys
+2. Run, in the project directory:
+   ```bash
+   python3 .claude/scripts/provision.py --set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_... --set CLERK_SECRET_KEY=sk_...
+   ```
+   It sets each key on every service whose `render.yaml` entry declares it.
+3. Write "keys set" on the blocker's `Resolution:` line and run `/orchestrate`
 
-**Prevention:** Create your Clerk app and set the keys in Render BEFORE the first run. See SETUP.md Step 2b.
+**Prevention:** Paste the Clerk keys when the wizard asks; the provisioner sets them during onboarding.
 
 ---
 
@@ -98,7 +99,7 @@ Every Render call in the factory goes through `.claude/scripts/render-api-key.sh
 
 ### 6. Push to Deploy (Code Review Checkpoint)
 
-**When:** After backend or frontend code is written, the infra-worker commits the code and needs you to push it to trigger Render's auto-deploy.
+**When:** After backend or frontend code is written, the infra-worker commits the code and the project's **push policy** (CLAUDE.md → Deployment) is `human`. Under `factory` (the Quick Start default) the runner pushes itself and this intervention never occurs.
 
 **Symptom:** Blocker with type `external-action`, message like "Code committed. Please run `git push origin main` to deploy."
 
@@ -209,11 +210,9 @@ Run `/preflight` (or `python3 .claude/scripts/preflight.py`). It checks all of t
 - [ ] `dev-browser` installed (`npm install -g dev-browser`) if the project has a frontend
 - [ ] `render.yaml` exists in repo root (generated during onboarding)
 - [ ] Git repo created, committed, and pushed to GitHub
-- [ ] Env group (`general_builder_keys` by default) exists in the workspace
-- [ ] **Blueprint Instance created**: Render Dashboard → Blueprints → "New Blueprint Instance" → select your repo
-  - Render reads `render.yaml` and creates all services + database
+- [ ] Every service, database and env group in `render.yaml` exists on Render — `python3 .claude/scripts/provision.py` creates whatever is missing (the wizard ran it at onboarding)
   - The skeleton apps deploy on the first build; both `/health` endpoints should return `{"status": "ok"}`
-- [ ] `sync: false` env vars (Clerk keys) set in the Render Dashboard
+- [ ] `sync: false` secrets (Clerk keys) have values — `provision.py --set KEY=VALUE`
 
 The runner also runs preflight the first time it pulls a brief from the backlog and parks any failure as a blocker with the same fix text. After this setup, deploys happen through your `git push` — Render auto-deploys on commit, and the infra-worker verifies each deploy went live. The factory never creates services and never pushes on its own.
 
@@ -234,7 +233,7 @@ The runner also runs preflight the first time it pulls a brief from the backlog 
 | Intervention | Type | Typical Resolution Time | Can Prevent? |
 |-------------|------|------------------------|-------------|
 | Platform auth | external-action | 2 minutes | Yes — login beforehand |
-| Database provisioning | external-action | 5 minutes | Yes — Blueprint Instance beforehand |
+| Provisioning failed (billing / GitHub access) | external-action | 5 minutes | Yes — account setup beforehand |
 | **Clerk auth keys** | **external-action** | **5 minutes** | **Yes — create Clerk app beforehand** |
 | Env vars / secrets | needs-human-decision | 5-30 minutes | Partially — have keys ready |
 | Git repo setup | external-action | 5 minutes | Yes — set up beforehand |

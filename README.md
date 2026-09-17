@@ -2,12 +2,24 @@
 
 **Prompt to production.** A Claude Code orchestration toolkit with pre-built skills, worker agents, and deployment configs that turns a product description into deployed, tested software — autonomously.
 
+## The Contract
+
+1. **Clone this repo.**
+2. **Run the wizard** (`bootstrap.sh` installs the tools first, or run `onboard.py` directly).
+3. **A new project repo is created** — one monorepo with `backend/` + `frontend/`, pushed to GitHub, with its database and web services live on Render, and Claude Code configured inside it to build what you describe.
+
+Nothing else is a prerequisite. No Dashboard clicking per project: the wizard provisions Render from `render.yaml` through the API. The only one-time account setup is a Render payment method, connecting GitHub to Render, and a Render API key — see [GETTING-STARTED.md](GETTING-STARTED.md) for the non-developer walkthrough.
+
+Then, inside the new project:
+
 ```
 /spec create "build an invoice tracker for freelancers"
 /goal <the prompt the spec skill hands you>
 ```
 
-That's it. The factory handles decomposition, coding, testing, visual design, and deployment across backend, frontend, and infrastructure — with you in the loop only when it matters.
+The factory handles decomposition, coding, testing, visual design, and deployment across backend, frontend, and infrastructure — with you in the loop only when it matters.
+
+**Two modes**, same machinery. **Quick Start** (default) asks four plain questions, takes every technical default, lets the runner push deploys, and tells every session to speak in plain language and take decisions from chat. **Custom** asks the developer questions: stack, auth, env group, who pushes.
 
 ---
 
@@ -24,10 +36,10 @@ That's it. The factory handles decomposition, coding, testing, visual design, an
                               execute subtasks
 ```
 
-1. **Onboard** — Run the setup wizard, pointed at a project directory (existing or not). Answer a few questions about your stack. The factory creates the repo, installs skills, agents, hooks, and the brief board, and pushes it to GitHub.
+1. **Onboard** — Run the setup wizard, pointed at a project directory (existing or not). Four questions in Quick Start, the full stack interview in Custom. The factory creates the repo, installs skills, agents, hooks, and the brief board, pushes it to GitHub, and provisions the Render database and services from `render.yaml`.
 2. **Spec** — Describe what you want. The spec skill interviews you and produces a **goal brief**: a self-contained card on the `briefs/` Kanban board with requirements, acceptance criteria, and an embedded execution protocol — plus a ready-to-paste `/goal` prompt.
 3. **Run** — Paste the `/goal` prompt. Claude Code keeps running turns until the brief reaches a terminal folder; each turn the runner delegates subtasks to specialized worker subagents, updates the brief, and proves board state. Human blockers are parked while everything else continues — the brief only lands in `3-blocked/` when nothing runnable remains.
-4. **Deploy** — Infrastructure-first workflow. Backend deploys and tests against a real database before frontend work begins. You `git push` when ready — Render auto-deploys.
+4. **Deploy** — Infrastructure-first workflow. Backend deploys and tests against a real database before frontend work begins. Render auto-deploys on push; in Quick Start the runner pushes, in Custom you choose who does.
 
 ## What's In The Box
 
@@ -67,50 +79,36 @@ your-project/
     ├── settings.json       # Permissions + hooks wiring
     ├── hooks/              # brief-progress-guard (enforced docs), trajectory-log,
     │                       #   render-workspace-guard (fail-closed workspace pin)
-    ├── scripts/            # render-api-key.sh (credential resolver), preflight.py
+    ├── scripts/            # render-api-key.sh (credential), preflight.py (readiness),
+    │                       #   provision.py (applies render.yaml via the Render API)
+    ├── render-services.json# live ids + URLs, written by provision.py
     ├── agents/             # 3 worker subagent definitions
     └── skills/             # 9 skills (orchestration + development + deployment + preflight)
 ```
 
 ## Usage
 
-The full walkthrough, including the Render Dashboard steps, is in [SETUP.md](SETUP.md). The short version:
+Non-developers: follow [GETTING-STARTED.md](GETTING-STARTED.md). Developers, the short version:
 
-### Step 0: Install the tools (once per machine)
-
-```bash
-brew install render gh          # Render CLI + GitHub CLI
-render login                    # opens a browser; stores a token in ~/.render/cli.yaml
-gh auth login
-npm install -g dev-browser      # headless browser the frontend worker uses for screenshots
-```
-
-Plus [Claude Code](https://claude.ai/claude-code), Python 3.8+, and git 2.28+. The `render login` token expires, so also create a long-lived API key (Render Dashboard → Account Settings → API Keys) and have it ready — the wizard asks for it and stores it gitignored.
-
-### Step 1: Clone the factory (once)
+### Once per machine and per Render account
 
 ```bash
-git clone https://github.com/nbdesai1992/software-factory.git
+git clone https://github.com/nbdesai1992/software-factory.git ~/software-factory
 ```
 
-Keep this somewhere permanent. It's the source — you'll point it at each new project.
+Render Dashboard, one time: add a **payment method** (Billing), **connect GitHub** (Account Settings → GitHub), and create an **API key** (Account Settings → API Keys). The `render login` token expires; the API key does not, and the wizard stores it gitignored in the project.
 
-### Step 2: Onboard a new project
+### Step 1–3: bootstrap → wizard → new repo
 
 ```bash
-python /path/to/software-factory/onboard.py ~/code/my-new-app
+~/software-factory/bootstrap.sh ~/code/my-new-app     # installs render, gh, node, dev-browser; logs in; runs the wizard
+# or, tools already present:
+python3 ~/software-factory/onboard.py ~/code/my-new-app [--quick|--custom]
 ```
 
-The directory doesn't need to exist — the wizard offers to create it. It asks about your stack (Next.js? FastAPI? PostgreSQL? Clerk?), detects the Render workspace your CLI is logged in to and offers to pin the project to it, then installs everything: 8 skills, 3 worker agents, CLAUDE.md, render.yaml, settings.json, hooks, and skeleton `backend/` + `frontend/` apps. Finally it runs `git init` and — if the `gh` CLI is authenticated — offers to create the GitHub repo, commit, and push. Point it at an existing clone instead and it leaves your repo and remote untouched.
+The directory doesn't need to exist. The wizard asks its questions (four in Quick Start; stack, auth, env group and push policy in Custom), pins the project to the Render workspace your CLI is logged in to, installs everything — 9 skills, 3 worker agents, CLAUDE.md, render.yaml, settings.json, hooks, scripts, skeleton `backend/` + `frontend/` apps — then creates the GitHub repo, commits, pushes, and **runs `provision.py`**, which creates the database and both web services on Render from `render.yaml`. When it returns you have a monorepo on GitHub with two `onrender.com` URLs serving the skeleton. Point it at an existing clone instead and it leaves your repo and remote untouched.
 
-### Step 3: Set up Render (one-time, in the Dashboard)
-
-1. **Env group** — create `general_builder_keys` (or the name you chose) and add shared keys such as `ANTHROPIC_API_KEY`.
-2. **Clerk keys** (if you chose Clerk) — create the Clerk app and have its publishable + secret keys ready.
-3. **Blueprints → New Blueprint Instance → select your repo.** Render reads `render.yaml` and creates the API service, frontend service, and Postgres database. The skeleton apps deploy on the first build; both `/health` endpoints should return `{"status": "ok"}`.
-4. Set the `sync: false` env vars (Clerk keys) on the new services.
-
-Render cannot create Blueprint Instances from the API or CLI, so this step is always yours. The infra worker verifies the services exist and uses them; it never creates them.
+`provision.py` is idempotent and is also how the infra-worker applies later changes to `render.yaml`. A human-created Blueprint Instance is an optional alternative applier for developers who want Render's native sync; nothing requires it.
 
 ### Step 4: Preflight, then build
 
@@ -189,7 +187,7 @@ The runner provisions infrastructure, writes backend code tested against your re
 
 ## Deploy Platform
 
-**Render only.** The factory ships one adapter: CLI reference, API docs, blueprint schema, pricing guide, starter `render.yaml` generation (monorepo with `rootDir` per service), and a fail-closed hook that pins every project to one Render workspace. The onboarding wizard offers `render` or `none`; nothing else is wired up.
+**Render only.** The factory ships one adapter: CLI reference, API docs, blueprint schema, pricing guide, starter `render.yaml` generation (monorepo with `rootDir` per service), `provision.py` to apply that file through the API, and a fail-closed hook that pins every project to one Render workspace. The onboarding wizard offers `render` or `none`; nothing else is wired up.
 
 To add a platform later: `factory/templates/skills/deploy/{platform}/SKILL.md.tpl` plus a choice in `onboard.py`.
 
@@ -199,8 +197,8 @@ The system is autonomous but pauses for you when it matters:
 
 | When | What You Do | Time |
 |------|------------|------|
-| Push to deploy | Review code, `git push` | 1-2 min |
-| Missing API keys | Set env vars in Render Dashboard | 5 min |
+| Push to deploy (Custom mode, `human` push policy) | Review code, `git push` | 1-2 min |
+| Missing API keys | `python3 .claude/scripts/provision.py --set KEY=VALUE` | 1 min |
 | Brief lands in `3-blocked/` | Answer the `Resolution:` lines in the brief, run `/orchestrate` | 1-5 min |
 | Design review (optional) | Check `session/design-direction.md` | 5 min |
 

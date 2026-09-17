@@ -47,10 +47,22 @@ class ProjectConfig:
     dev_server_port: int = 3000
     dev_server_command: str = "npm run dev"
     testing_policy: str = "local"
+    mode: str = "quick"            # quick (defaults, plain-language runner) | custom (developer chooses)
+    push_policy: str = "human"     # human (review checkpoint) | factory (runner pushes)
 
     def to_replacements(self) -> dict:
         """Return a dict of {{PLACEHOLDER}} → value for template rendering."""
         return {
+            "{{MODE}}": self.mode,
+            "{{MODE_SECTION}}": self._mode_section(),
+            "{{PUSH_POLICY}}": self.push_policy,
+            "{{PUSH_POLICY_LINE}}": self._push_policy_line(),
+            "{{ENV_GROUP_LINE}}": (
+                f"- Shared env group: `{self.env_group_name}` (linked to all services via render.yaml `fromGroup`; created empty by provision.py if missing)"
+                if self.env_group_name else
+                "- Shared env group: none (add one to render.yaml with `fromGroup` if services need shared keys)"
+            ),
+            "{{QUICKSTART_PERMISSIONS}}": QUICKSTART_PERMISSIONS if self.mode == "quick" else "",
             "{{PROJECT_NAME}}": self.project_name,
             "{{PROJECT_SLUG}}": self.project_slug,
             "{{PROJECT_DESCRIPTION}}": self.project_description,
@@ -71,6 +83,26 @@ class ProjectConfig:
             "{{DEV_SERVER_COMMAND}}": self.dev_server_command,
             "{{TESTING_POLICY}}": self.testing_policy,
         }
+
+    def _push_policy_line(self) -> str:
+        if self.push_policy == "factory":
+            return ("- **Push policy: factory.** After a deploy subtask commits, the runner runs `git push` itself, "
+                    "records the SHA in the Progress Log, and then spawns the deploy-verification subtask. No human push checkpoint.")
+        return ("- **Push policy: human.** Deploy subtasks commit and then raise an `external-action` blocker; "
+                "the human reviews and runs `git push`. Render auto-deploys on push.")
+
+    def _mode_section(self) -> str:
+        if self.mode != "quick":
+            return ""
+        return """## Working Mode: Quick Start
+
+This project was set up in Quick Start mode. The person running it may not be a developer. Every session — runner and workers — follows these rules:
+
+- **Plain language, always.** Describe what is happening in terms of the product ("the sign-in page", "saving an invoice"), not the stack. Expand any technical term the first time it is used. No file paths or command names in messages to the human unless they must type them, and then give the exact line to paste.
+- **Blockers are questions, not tickets.** When the runner needs a human decision, ask it as a short question with 2–3 concrete options and a recommendation. Accept the answer in chat: write it onto the blocker's `Resolution:` line yourself and continue. Never ask the human to edit a file in `briefs/`.
+- **Anything a script can do, the human does not.** Render services come from `.claude/scripts/provision.py`, readiness from `.claude/scripts/preflight.py`. If either reports a `[FAIL]`, relay its `→ fix` line verbatim — those are written for non-developers.
+- **Money and time are visible.** When work will start billing (new Render resources) or take a long time (a full deploy cycle), say so in one sentence before doing it.
+- **Done means they can use it.** The final message of a completed brief leads with the live URL and what they can do there, not with what was built."""
 
     def _auth_section(self) -> str:
         if self.auth_provider == "clerk":
@@ -94,9 +126,26 @@ HOOK_FILES = [
 
 # Helper scripts installed into .claude/scripts/ — (template name, installed name)
 SCRIPT_FILES = [
-    ("render-api-key.sh", "render-api-key.sh"),   # copied as-is
-    ("preflight.py.tpl", "preflight.py"),         # rendered with project config
+    ("render-api-key.sh", "render-api-key.sh"),   # copied as-is: credential resolver
+    ("render_yaml.py", "render_yaml.py"),         # copied as-is: shared render.yaml reader
+    ("preflight.py.tpl", "preflight.py"),         # rendered: readiness check
+    ("provision.py.tpl", "provision.py"),         # rendered: apply render.yaml via the Render API
 ]
+
+# Extra permission rules for Quick Start projects: an unattended /goal run must
+# not stop for approval on every command. The workspace guard hook remains the
+# hard safety boundary for anything touching Render. Rendered into
+# settings.json.tpl as a JSON fragment (leading comma included).
+QUICKSTART_PERMISSIONS = """,
+      "Read", "Edit", "Write", "Glob", "Grep", "Task",
+      "Bash(git *)", "Bash(gh *)",
+      "Bash(python3 *)", "Bash(python *)", "Bash(pip *)", "Bash(pip3 *)", "Bash(pytest*)", "Bash(uvicorn *)",
+      "Bash(npm *)", "Bash(npx *)", "Bash(node *)",
+      "Bash(render *)", "Bash(curl *)",
+      "Bash(ls*)", "Bash(cat *)", "Bash(head *)", "Bash(tail *)", "Bash(grep *)", "Bash(find *)", "Bash(wc *)",
+      "Bash(mkdir *)", "Bash(touch *)", "Bash(cp *)", "Bash(mv *)", "Bash(lsof *)", "Bash(kill *)", "Bash(sleep *)",
+      "Bash(cd *)", "Bash(echo *)", "Bash(printf *)", "Bash(test *)", "Bash([ *)", "Bash(which *)", "Bash(env*)", "Bash(export *)",
+      "Bash(.claude/scripts/*)", "Bash(bash .claude/scripts/*)", "Bash(sh .claude/scripts/*)\""""
 
 # Smart defaults by framework
 FRAMEWORK_DEFAULTS = {
@@ -246,12 +295,86 @@ def detect_render_workspace() -> tuple:
     return name, ws_id
 
 
-def interview() -> ProjectConfig:
-    config = ProjectConfig()
+def ask_secret(prompt: str) -> str:
+    """Hidden input on a terminal; plain input when piped (tests, CI)."""
+    try:
+        return (getpass.getpass(prompt) if sys.stdin.isatty() else input(prompt)).strip()
+    except (EOFError, KeyboardInterrupt):
+        return ""
+
+
+def ask_render_api_key(config: ProjectConfig):
+    print("\n  The `render login` token expires. A long-lived API key keeps autonomous runs")
+    print("  working: Render Dashboard → Account Settings → API Keys → Create. Input is hidden.")
+    config.render_api_key_input = ask_secret("  Render API key (rnd_...; blank = rely on `render login`): ")
+
+
+def ask_clerk_keys(config: ProjectConfig):
+    print("\n  Sign-in is handled by Clerk (clerk.com). Create an application there, then paste its two keys.")
+    print("  Blank is fine — you can add them later; sign-in just won't work until you do. Input is hidden.")
+    secrets = {}
+    pk = ask_secret("  Clerk publishable key (pk_...): ")
+    sk = ask_secret("  Clerk secret key (sk_...): ")
+    if pk:
+        secrets["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"] = pk
+    if sk:
+        secrets["CLERK_SECRET_KEY"] = sk
+    config.secrets_input = secrets  # not a dataclass field → excluded from asdict()
+
+
+def interview_quick() -> ProjectConfig:
+    """Quick Start: four plain questions; every technical choice takes the default."""
+    config = ProjectConfig(mode="quick", push_policy="factory", env_group_name="")
 
     print()
     print("=" * 60)
-    print("  SOFTWARE FACTORY — Project Onboarding")
+    print("  SOFTWARE FACTORY — Quick Start")
+    print("=" * 60)
+    print()
+    print("  Four questions. Everything technical is chosen for you:")
+    print("  a web app (Next.js) with an API (FastAPI) and a database (PostgreSQL),")
+    print("  hosted on Render, in one GitHub repository. Press Enter to accept [defaults].")
+    print()
+
+    config.project_name = ask("What is the project called?")
+    config.project_slug = re.sub(r"-+", "-", re.sub(r"[^a-z0-9-]", "-", config.project_name.lower())).strip("-")
+    config.project_description = ask("In one sentence, what does it do?")
+    config.domain = ask("Who is it for, or what world does it live in? (e.g. 'freelancers sending invoices')")
+    config.design_context = (
+        f"This product lives in the world of {config.domain}. "
+        f"Design choices should feel domain-specific, not generic SaaS. "
+        f"See `session/design-direction.md` for the full design direction when it exists."
+    )
+
+    config.frontend_framework = "nextjs"
+    config.backend_framework = "fastapi"
+    config.database = "postgresql"
+    config.deploy_platform = "render"
+    fe = FRAMEWORK_DEFAULTS["nextjs"]
+    config.dev_server_port, config.dev_server_command = fe["port"], fe["command"]
+
+    login = ask("Will people need to sign in with an account? (y/n)", "n").lower() in ("y", "yes")
+    config.auth_provider = "clerk" if login else "none"
+    if login:
+        ask_clerk_keys(config)
+
+    detected_name, detected_id = detect_render_workspace()
+    if detected_name or detected_id:
+        config.render_workspace, config.render_workspace_id = detected_name, detected_id
+        print(f"\n  Render workspace: '{detected_name}' ({detected_id}) — this project is pinned to it.")
+    else:
+        print("\n  No Render login found. Run `render login` before provisioning; the pin can be set later with --reconfigure.")
+    ask_render_api_key(config)
+    return config
+
+
+def interview() -> ProjectConfig:
+    """Custom: the developer chooses the stack."""
+    config = ProjectConfig(mode="custom")
+
+    print()
+    print("=" * 60)
+    print("  SOFTWARE FACTORY — Project Onboarding (Custom)")
     print("=" * 60)
     print()
     print("  Answer a few questions to set up the orchestration system.")
@@ -328,14 +451,13 @@ def interview() -> ProjectConfig:
 
         # Long-lived API key (optional). Never stored in factory-config.json;
         # written to .claude/settings.local.json (gitignored) by setup_project.
-        print("\n  The `render login` token expires. A long-lived API key keeps autonomous runs")
-        print("  working: Render Dashboard → Account Settings → API Keys → Create. Input is hidden.")
-        prompt = "  Render API key (rnd_...; blank = rely on `render login`): "
-        try:
-            key = (getpass.getpass(prompt) if sys.stdin.isatty() else input(prompt)).strip()
-        except (EOFError, KeyboardInterrupt):
-            key = ""
-        config.render_api_key_input = key  # not a dataclass field → excluded from asdict()
+        ask_render_api_key(config)
+
+        config.push_policy = ask_choice(
+            "Who pushes to deploy? 'human' = you review and git push (checkpoint); 'factory' = the runner pushes",
+            ["human", "factory"],
+            default="human",
+        )
 
     # ── Authentication ──
     print("\n  --- Authentication ---")
@@ -344,6 +466,8 @@ def interview() -> ProjectConfig:
         ["clerk", "none"],
         default="clerk",
     )
+    if config.auth_provider == "clerk":
+        ask_clerk_keys(config)
 
     # ── Dev Server ──
     print("\n  --- Dev Server ---")
@@ -504,9 +628,9 @@ def generate_render_yaml(config: ProjectConfig, target: Path):
         if has_frontend:
             svc.extend([
                 f"      - key: FRONTEND_URL",
-                f"        sync: false  # Set by infra-worker with actual Render URL (https://)",
+                f"        sync: false  # Set by provision.py with the actual Render URL (https://)",
                 f"      - key: CORS_ORIGINS",
-                f"        sync: false  # Set by infra-worker with actual Render URL (https://)",
+                f"        sync: false  # Set by provision.py with the actual Render URL (https://)",
             ])
         if config.auth_provider == "clerk":
             svc.extend([
@@ -539,8 +663,13 @@ def generate_render_yaml(config: ProjectConfig, target: Path):
         if has_backend:
             svc.extend([
                 f"      - key: API_URL",
-                f"        sync: false  # Set by infra-worker with actual Render URL (https://)",
+                f"        sync: false  # Set by provision.py with the actual Render URL (https://)",
             ])
+            if config.frontend_framework == "nextjs":
+                svc.extend([
+                    f"      - key: NEXT_PUBLIC_API_URL",
+                    f"        sync: false  # Same URL, exposed to browser code by Next.js",
+                ])
         if config.auth_provider == "clerk":
             svc.extend([
                 f"      - key: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
@@ -781,11 +910,12 @@ def run_cmd(cmd: list, cwd: Path) -> tuple:
         return False, f"{' '.join(cmd)}: timed out"
 
 
-def setup_git_repo(config: ProjectConfig, target: Path):
-    """Initialize git, then optionally create and link a GitHub remote.
+def setup_git_repo(config: ProjectConfig, target: Path) -> bool:
+    """Initialize git, then create and link a GitHub remote, commit, push.
 
-    Render deploys by watching a GitHub remote, so a project without one
-    cannot reach the Blueprint Instance step.
+    Returns True when the setup commit is on a remote — the precondition for
+    provisioning, since Render builds from GitHub. This is step 3 of the
+    factory's contract (clone → wizard → new repo), so the defaults say yes.
     """
     if (target / ".git").is_dir():
         print("    . git repo (already initialized)")
@@ -793,7 +923,7 @@ def setup_git_repo(config: ProjectConfig, target: Path):
         ok, out = run_cmd(["git", "init", "-b", "main"], target)
         if not ok:
             print(f"    ! git init failed: {out.splitlines()[0] if out else 'unknown error'}")
-            return
+            return False
         print("    + git init (branch: main)")
 
     ok, remotes = run_cmd(["git", "remote"], target)
@@ -804,9 +934,9 @@ def setup_git_repo(config: ProjectConfig, target: Path):
         if not gh_ok:
             print("    - no GitHub remote (gh CLI missing or not authenticated)")
             print(f"      Add one later: gh repo create {config.project_slug} "
-                  f"--private --source=. --remote=origin")
-        elif ask(f"Create GitHub repo '{config.project_slug}'? (y/n)", "n").lower() in ("y", "yes"):
-            visibility = ask_choice(
+                  f"--private --source=. --remote=origin --push")
+        elif ask(f"Create the GitHub repo '{config.project_slug}' now? (y/n)", "y").lower() in ("y", "yes"):
+            visibility = "private" if config.mode == "quick" else ask_choice(
                 "Repository visibility:", ["private", "public"], default="private"
             )
             ok, out = run_cmd(
@@ -823,27 +953,63 @@ def setup_git_repo(config: ProjectConfig, target: Path):
 
     # Initial commit — Render needs the skeleton + render.yaml on the remote
     ok, dirty = run_cmd(["git", "status", "--porcelain"], target)
-    if not ok or not dirty:
-        return
-    if ask("Commit the factory setup? (y/n)", "y").lower() in ("n", "no"):
-        print("    - skipped initial commit")
-        return
-    run_cmd(["git", "add", "-A"], target)
-    ok, out = run_cmd(["git", "commit", "-m", "factory setup"], target)
-    if not ok:
-        print(f"    ! commit failed: {out.splitlines()[0] if out else 'unknown error'}")
-        return
-    print("    + commit 'factory setup'")
+    if ok and dirty:
+        if ask("Commit the factory setup? (y/n)", "y").lower() in ("n", "no"):
+            print("    - skipped initial commit")
+            return False
+        run_cmd(["git", "add", "-A"], target)
+        ok, out = run_cmd(["git", "commit", "-m", "factory setup"], target)
+        if not ok:
+            print(f"    ! commit failed: {out.splitlines()[0] if out else 'unknown error'}")
+            return False
+        print("    + commit 'factory setup'")
 
     ok, remotes = run_cmd(["git", "remote"], target)
     if not (ok and remotes):
-        return
-    if ask("Push to the remote now? (y/n)", "y").lower() in ("n", "no"):
-        print("    - skipped push (run 'git push -u origin main' before the Blueprint step)")
-        return
+        return False
+    ok, status = run_cmd(["git", "status", "-sb"], target)
+    head = status.splitlines()[0] if status else ""
+    if "..." in head and "ahead" not in head:
+        print("    . remote is up to date")
+        return True
+    if ask("Push to GitHub now? (y/n)", "y").lower() in ("n", "no"):
+        print("    - skipped push (run 'git push -u origin main' before provisioning)")
+        return False
     ok, out = run_cmd(["git", "push", "-u", "origin", "HEAD"], target)
     print("    + pushed to origin" if ok
           else f"    ! push failed: {out.splitlines()[-1] if out else 'unknown error'}")
+    return ok
+
+
+def provision_render(config: ProjectConfig, target: Path, pushed: bool):
+    """Step 3 of the contract: the new repo gets its live services.
+
+    Runs the installed provisioner (idempotent). Skips with a clear message
+    when the preconditions are missing rather than failing the wizard.
+    """
+    script = target / ".claude" / "scripts" / "provision.py"
+    print("\n  Render services:")
+    if not script.exists():
+        print("    - provisioner not installed")
+        return
+    if not pushed:
+        print("    - skipped: the repo is not on GitHub yet. When it is, run:")
+        print("      python3 .claude/scripts/provision.py")
+        return
+    ok, source = run_cmd(["bash", str(target / ".claude" / "scripts" / "render-api-key.sh"), "--source"], target)
+    if not ok or not source or source.strip() == "cli-token-EXPIRED":
+        print("    - skipped: no working Render credential (run `render login` or add an API key), then run:")
+        print("      python3 .claude/scripts/provision.py")
+        return
+    print("    Creating the database and web services on Render from render.yaml.")
+    print("    Paid plans (starter services, basic-256mb database ≈ $20/month) start billing immediately.")
+    if ask("    Create them now? (y/n)", "y").lower() in ("n", "no"):
+        print("    - skipped. Later: python3 .claude/scripts/provision.py")
+        return
+    print()
+    code = subprocess.call([sys.executable, str(script), "--yes"], cwd=str(target))
+    if code != 0:
+        print("\n    ! provisioning did not complete — fix the [FAIL] above and re-run: python3 .claude/scripts/provision.py")
 
 
 # ──────────────────────────────────────────────
@@ -922,8 +1088,9 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
     settings_tpl = templates / "settings.json.tpl"
     settings_path = claude_dir / "settings.json"
     settings_path.parent.mkdir(parents=True, exist_ok=True)
-    settings_path.write_text(settings_tpl.read_text(encoding="utf-8"), encoding="utf-8")
-    print(f"    + settings.json (permissions + hooks)")
+    settings_path.write_text(render_template(settings_tpl.read_text(encoding="utf-8"), replacements), encoding="utf-8")
+    json.loads(settings_path.read_text(encoding="utf-8"))  # fail loudly if the rendered JSON is broken
+    print(f"    + settings.json (permissions + hooks{'; Quick Start allowlist' if config.mode == 'quick' else ''})")
 
     # Explicit list (not a glob): these are exactly the hooks settings.json
     # wires up, so stray files in the templates folder can never leak.
@@ -962,11 +1129,16 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
     if preflight_tpl.exists():
         render_file(preflight_tpl, skills_dir / "preflight" / "SKILL.md", replacements)
 
-    # Long-lived Render API key → .claude/settings.local.json (gitignored)
+    # Secrets → .claude/settings.local.json (gitignored): Render API key,
+    # Clerk keys. provision.py reads Clerk keys from here for sync:false vars.
+    local_secrets = dict(getattr(config, "secrets_input", {}) or {})
     api_key = getattr(config, "render_api_key_input", "")
     if config.deploy_platform == "render" and api_key:
-        write_local_secret(claude_dir, "RENDER_API_KEY", api_key)
-        print(f"    + .claude/settings.local.json (RENDER_API_KEY — gitignored, injected into every Bash call)")
+        local_secrets["RENDER_API_KEY"] = api_key
+    for k, v in local_secrets.items():
+        write_local_secret(claude_dir, k, v)
+    if local_secrets:
+        print(f"    + .claude/settings.local.json ({', '.join(sorted(local_secrets))} — gitignored)")
 
     # Workspace pin — the render-workspace-guard hook fail-closes Render
     # CLI/API commands unless the current workspace matches a line in this
@@ -1033,33 +1205,36 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
     config_path.write_text(json.dumps(asdict(config), indent=2) + "\n", encoding="utf-8")
     print(f"    + factory-config.json (for re-onboarding)")
 
-    # ── 10. Git repo + remote (last: .gitignore and all files exist by now) ──
+    # ── 10. Git repo + remote (.gitignore and all files exist by now) ──
     print("\n  Git:")
-    setup_git_repo(config, target)
+    pushed = setup_git_repo(config, target)
+
+    # ── 11. Live services on Render (step 3 of the contract) ──
+    if config.deploy_platform == "render":
+        provision_render(config, target, pushed)
 
     # ── Done ──
     print()
     print("=" * 60)
     print("  SETUP COMPLETE")
     print("=" * 60)
+    blocked_hint = ("If the run stops with a question, answer it in the chat — the runner records it and continues."
+                    if config.mode == "quick" else
+                    "If a brief lands in briefs/3-blocked/ it NEEDS YOU: answer its Resolution: lines, then run /orchestrate to resume.")
     print(f"""
-  Your project is now configured with the orchestration system.
+  Your new project repo is set up: code skeleton, brief board, skills, hooks,
+  render.yaml{', GitHub remote' if pushed else ''}.
 
   Next steps:
-    1. Render Dashboard (one-time): create the env group, then
-       Blueprints → New Blueprint Instance → select this repo (SETUP.md Step 2)
-    2. cd {target}
-    3. Check readiness:  python3 .claude/scripts/preflight.py
-       (or /preflight inside Claude Code) — fix every FAIL line
-    4. Open Claude Code
-    5. Run:  /spec create "describe what you want to build"
-    6. Review and approve the brief — it lands in briefs/1-backlog/
-    7. Paste the generated /goal prompt (autonomous, runs until the brief
-       reaches briefs/4-done/ or briefs/3-blocked/) — or run /orchestrate
-       manually one turn at a time
-    8. Use:  /status  at any time to see the board
-    9. If a brief lands in briefs/3-blocked/ it NEEDS YOU: answer its
-       Resolution: lines, then run /orchestrate to resume
+    1. cd {target}
+    2. Check readiness:  python3 .claude/scripts/preflight.py
+       (or /preflight inside Claude Code) — fix every FAIL line; it tells you how
+    3. Open Claude Code:  claude
+    4. Run:  /spec create "describe what you want to build"
+    5. Approve the brief, then paste the /goal prompt it hands you.
+       The factory works until the brief is done or needs you.
+    6. /status shows the board at any time.
+    7. {blocked_hint}
 
   Skills installed:
     - /preflight     Readiness check: tools, git, Render auth, services, secrets
@@ -1120,6 +1295,14 @@ def main():
 
     machine_preflight()
 
+    # Mode: Quick Start (defaults, plain-language runner) or Custom (developer chooses the stack)
+    if "--quick" in sys.argv:
+        mode = "quick"
+    elif "--custom" in sys.argv:
+        mode = "custom"
+    else:
+        mode = "custom" if input("  Choose your own tech stack (developers)? [y/N]: ").strip().lower() in ("y", "yes") else "quick"
+
     if not target.exists():
         print(f"\n  Target directory does not exist: {target}")
         if input("  Create it? [Y/n]: ").strip().lower() in ("n", "no"):
@@ -1147,10 +1330,10 @@ def main():
 
         confirm = input("\n  Re-apply this configuration? [Y/n]: ").strip().lower()
         if confirm in ("n", "no"):
-            config = interview()
+            config = interview_quick() if mode == "quick" else interview()
         # else use saved config
     else:
-        config = interview()
+        config = interview_quick() if mode == "quick" else interview()
 
     # Show generation summary
     print()
@@ -1159,6 +1342,7 @@ def main():
     print("-" * 50)
     print(f"  Project:    {config.project_name} ({config.project_slug})")
     print(f"  Domain:     {config.domain}")
+    print(f"  Mode:       {'Quick Start (defaults; runner pushes; plain-language)' if config.mode == 'quick' else 'Custom'}")
     print()
 
     def _status(enabled, label, detail=""):
@@ -1184,7 +1368,7 @@ def main():
     _status(config.deploy_platform != "none", "infra-worker agent")
     print()
 
-    skills = ["orchestrate", "spec", "status", "worker-protocol", "bold-design"]
+    skills = ["preflight", "orchestrate", "spec", "status", "worker-protocol", "bold-design"]
     if config.backend_framework != "none":
         skills.append("backend-test")
     if config.frontend_framework != "none":

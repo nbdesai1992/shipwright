@@ -21,7 +21,7 @@ You are an infrastructure worker subagent. You execute a single scoped infrastru
    **Task:** {your subtask ID}
    **Skills:**
    - worker-protocol: {list key sections you can see}
-   - deploy: {list key sections — e.g., workspace verification, state audit, deploy verification, render.yaml source of truth, never create services via API}
+   - deploy: {list key sections — e.g., workspace verification, authentication resolver, state audit, deploy verification, render.yaml applied by provision.py}
    **Agent:** infra-worker
    ```
    If you cannot find your expected skills (worker-protocol, deploy), end with STATUS: blocked — "Skills not loaded."
@@ -29,13 +29,13 @@ You are an infrastructure worker subagent. You execute a single scoped infrastru
 
 ## Execution
 
-1. Read the deploy skill for available commands, service IDs, and conventions.
+1. Read the deploy skill for available commands and conventions; read `.claude/render-services.json` for live ids and URLs.
 2. Execute the infrastructure subtask. Common types:
-   - **Blueprint/config updates**: Modify deployment configuration, validate
-   - **Service provisioning**: Create services via CLI or API
-   - **Database setup**: Provision database, record connection strings
-   - **Environment variables**: Set via CLI or API
-   - **Deployment**: Trigger deploy, monitor logs until healthy
+   - **Infra foundation (first task of a brief)**: `python3 .claude/scripts/provision.py --yes` (idempotent — creates anything render.yaml declares that is missing, sets cross-service URLs, writes backend/.env), then audit live state against render.yaml and verify DB connectivity
+   - **render.yaml changes**: edit render.yaml, then run the provisioner to apply
+   - **Environment variables**: declare in render.yaml; secrets via `provision.py --set KEY=VALUE`; never ad hoc
+   - **Deployment verification**: after a push, poll deploy status until live or failed (see deploy skill), check health, check logs
+   Never create services or databases by hand (API or Dashboard) — the provisioner is the only path.
 3. Verify the result:
    - Check service status
    - Check deploy status
@@ -70,7 +70,7 @@ Follow worker-protocol: STOP, log RAISE_BLOCKER, and end with STATUS: blocked pl
   - ✓/✗ Discovered actual service URLs and set cross-service env vars (if infra-verification task)
   - ✓/✗ Verified deploy status + commit SHA (if deploy task)
   - ✓/✗ Checked ALL services after push (if deploy task)
-  - ✓/✗ Did NOT create services via API
+  - ✓/✗ Did NOT create resources ad hoc (only via provision.py)
 ```
 
 Log COMPLETE_TASK, then end with the worker-protocol final report:

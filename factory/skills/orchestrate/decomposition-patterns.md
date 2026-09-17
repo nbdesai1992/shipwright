@@ -19,15 +19,17 @@ Goal: "Add user registration with API and UI"
 ### Phases
 ```
 phase-1: Infrastructure Setup (NFR-1)
-    p1-task-1: Full Render state audit + environment setup → infra-worker
-               1. Verify workspace is correct
-               2. Verify services exist (if not, blocker: "Create Blueprint Instance")
-               3. Discover ACTUAL service URLs (Render adds random suffixes)
+    p1-task-1: Infra foundation → infra-worker
+               1. Verify workspace + credential (deploy skill pre-flight)
+               2. Run `python3 .claude/scripts/provision.py --yes` — idempotent: creates
+                  anything render.yaml declares that is missing, sets cross-service URLs,
+                  writes backend/.env, writes .claude/render-services.json
+               3. If it FAILs: relay its `→ fix` line as an external-action blocker
+                  (no payment method / GitHub not connected to Render / expired credential)
                4. Audit env vars: compare live Render state against render.yaml, flag drift
-               5. Set cross-service URLs via API (API_URL, FRONTEND_URL, CORS_ORIGINS) with full https://
-               6. Pull DB credentials, create backend/.env
-               7. Verify DB connectivity
-               8. Record actual URLs in the final report's Interface Contracts + update CLAUDE.md
+               5. Verify DB connectivity from backend/.env
+               6. Record actual URLs (from .claude/render-services.json) in the final
+                  report's Interface Contracts
 
 phase-2: Backend Development (FR-1, FR-2, FR-3)
     p2-task-1: Auth middleware setup (if auth configured in CLAUDE.md) → backend-worker
@@ -35,7 +37,9 @@ phase-2: Backend Development (FR-1, FR-2, FR-3)
                This MUST come before any user-specific models or endpoints.
     p2-task-2: Database models + migrations (run against Render DB via .env) → backend-worker (depends on p2-task-1 if models need user_id)
     p2-task-3: API endpoints, tested against Render DB → backend-worker (depends on p2-task-2)
-    p2-task-4: Commit code + raise blocker for human to push.
+    p2-task-4: Commit code, then deploy per CLAUDE.md push policy:
+               human → raise blocker for the human to push;
+               factory → the RUNNER runs `git push` itself (workers never push).
                After push: poll deploy status until live or failed.
                If failed: pull build logs, raise blocker with error.
                If live: verify health endpoints. → infra-worker (depends on p2-task-3)
@@ -43,7 +47,7 @@ phase-2: Backend Development (FR-1, FR-2, FR-3)
 phase-3: Frontend Development (FR-1, FR-2, NFR-2)
     p3-task-1: Registration UI + dashboard (local dev, wired to deployed backend API) → frontend-worker
     p3-task-2: Polish + local visual verification → frontend-worker (depends on p3-task-1)
-    p3-task-3: Commit code + raise blocker for human to push.
+    p3-task-3: Commit code, then deploy per push policy (as p2-task-4).
                After push: poll deploy status until live or failed.
                If failed: pull build logs, raise blocker with error.
                If live: verify health endpoints. → infra-worker (depends on p3-task-2)
@@ -52,9 +56,9 @@ phase-3: Frontend Development (FR-1, FR-2, NFR-2)
 ```
 
 Key points:
-- Infrastructure verified first. Infra-worker creates backend/.env with DB credentials.
+- Infrastructure first, via the provisioner. `provision.py` creates whatever render.yaml declares and writes backend/.env with DB credentials. Nobody creates Render resources by hand.
 - Backend tests run against the REAL Render database (no mocks, no SQLite).
-- Deploy tasks commit code then raise a BLOCKER for the human to `git push`. This is the natural pause point for code review and authentication. Render auto-deploys on push.
+- Deploy tasks commit code, then follow the **push policy in CLAUDE.md**: `human` → raise a BLOCKER for the human to `git push` (review checkpoint); `factory` → the runner pushes. Render auto-deploys on push either way.
 - Frontend development uses local dev server for visual iteration, wired to deployed backend API.
 - Post-deploy verification screenshots the LIVE deployed URL (not localhost).
 - Each phase decomposes just-in-time.
@@ -99,7 +103,7 @@ Goal: "Add a PostgreSQL database and deploy the backend API"
 ### Phases
 ```
 phase-1: Infrastructure (NFR-1, NFR-2)
-    p1-task-1: Verify/update render.yaml blueprint  → infra-worker
+    p1-task-1: Update render.yaml + run provision.py → infra-worker
     p1-task-2: Deploy and verify health endpoints    → infra-worker (depends on p1-task-1)
     p1-task-3: Run database migrations               → infra-worker (depends on p1-task-2)
 ```

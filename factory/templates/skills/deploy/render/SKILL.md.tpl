@@ -93,11 +93,11 @@ Render adds random suffixes to URLs (e.g., `{slug}-api-z0l3.onrender.com`). The 
 
 ## Known Services
 
-| Service | ID | Type |
-|---------|-----|------|
-| (none provisioned yet) | — | — |
+Live ids and URLs are in `.claude/render-services.json`, written by `provision.py` every time it runs. Read that file instead of maintaining a table here:
 
-Update this table as new services are provisioned.
+```bash
+cat .claude/render-services.json
+```
 
 ---
 
@@ -145,13 +145,21 @@ render workspace list -o json                          # List workspaces
 
 ---
 
-## IMPORTANT: Never Create Services via API
+## IMPORTANT: Resources Come From render.yaml, Applied by provision.py
 
-Services are created by the **human** via Render Dashboard → Blueprints → "New Blueprint Instance." This reads `render.yaml` and provisions all services in the correct workspace. The Render API does NOT support creating blueprint instances.
+`render.yaml` declares every service, database, and env group. **`.claude/scripts/provision.py` applies it** through the Render API — idempotent, pinned to the project workspace by owner ID, never deletes, never overwrites a set value (except the derived cross-service URL keys). It also writes `backend/.env` with the external database URL and `.claude/render-services.json` with ids and URLs.
 
-**You MUST NOT** use `POST /v1/services` or `POST /v1/postgres` to create services directly. This bypasses the blueprint, may target the wrong workspace, and creates unlinked services.
+```bash
+python3 .claude/scripts/provision.py --dry-run   # show what would be created
+python3 .claude/scripts/provision.py --yes       # apply (new paid resources start billing)
+python3 .claude/scripts/provision.py --set CLERK_SECRET_KEY=sk_...   # supply a sync:false secret
+```
 
-Your job is to **verify** services exist (created by the human via blueprint) and **use** them (deploy, logs, env vars, health checks). If services don't exist, raise a blocker asking the human to create the Blueprint Instance.
+**You MUST NOT** hand-craft `POST /v1/services` or `POST /v1/postgres` calls, or create anything in the Dashboard. If a resource is missing: check that render.yaml declares it, then run the provisioner. If render.yaml needs a new service, edit render.yaml first, then run the provisioner. This keeps render.yaml true and keeps every resource inside the pinned workspace.
+
+A human-created Blueprint Instance (Dashboard → Blueprints) is an acceptable alternative applier for developers who want Render's native sync on push; the two are compatible because both read the same file. Do not ask a human to create one — the provisioner does the same job from the terminal.
+
+If the provisioner fails, its `[FAIL]` line names the cause (no payment method, GitHub not connected to Render, expired credential). Relay that `→ fix` text verbatim as an `external-action` blocker.
 
 ## When to Use the API Directly
 

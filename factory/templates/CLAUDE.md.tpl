@@ -21,15 +21,18 @@
 - Platform: {{DEPLOY_PLATFORM}}
 - Dev server port: {{DEV_SERVER_PORT}}
 - Dev server command: `{{DEV_SERVER_COMMAND}}`
-- Backend API URL: (discovered at runtime — Render adds random suffixes to URLs)
-- Frontend URL: (discovered at runtime)
+- Backend API URL: see `.claude/render-services.json` (written by provision.py; Render adds random suffixes to URLs)
+- Frontend URL: see `.claude/render-services.json`
+{{PUSH_POLICY_LINE}}
 
 ### Environment
-- Shared env group: `{{ENV_GROUP_NAME}}` (linked to all services via render.yaml `fromGroup`)
-- Cross-service URLs: `API_URL` on frontend, `FRONTEND_URL` + `CORS_ORIGINS` on backend — declared in render.yaml as `sync: false`, set by infra-worker via Render API with actual `https://` URLs after discovering real service URLs
-- render.yaml is the **complete, authoritative declaration** of all service configuration. Every env var, env group link, and runtime setting must be in render.yaml. If a worker adds a new env var dependency, it must update render.yaml.
+{{ENV_GROUP_LINE}}
+- Cross-service URLs: `API_URL` (+ `NEXT_PUBLIC_API_URL`) on frontend, `FRONTEND_URL` + `CORS_ORIGINS` on backend — declared in render.yaml as `sync: false`, set by `provision.py` from the real `https://` URLs. Re-run `python3 .claude/scripts/provision.py` after adding a service; it is idempotent.
+- render.yaml is the **complete, authoritative declaration** of all service configuration. Every env var, env group link, and runtime setting must be in render.yaml. If a worker adds a new env var dependency, it must update render.yaml — then `provision.py` applies it. Nobody creates or edits Render resources ad hoc.
 
 {{AUTH_SECTION}}
+
+{{MODE_SECTION}}
 
 ### Development Workflow
 

@@ -228,46 +228,14 @@ def check_render_auth():
 # ── 4. render.yaml vs live Render ────────────────────────────────
 
 def parse_render_yaml():
-    """Minimal parser for the generated blueprint: service names, database
-    names, and per-service `sync: false` env var keys. Not a YAML parser —
-    good enough for onboarding-generated files and simple hand edits."""
-    path = ROOT / "render.yaml"
-    if not path.exists():
+    """Shared reader — see render_yaml.py next to this script."""
+    sys.path.insert(0, str(ROOT / ".claude" / "scripts"))
+    import render_yaml  # noqa: E402
+    spec = render_yaml.load(ROOT)
+    if spec is None:
         return None
-    services, databases = [], []
-    section = None
-    current = None
-    pending_key = None
-    for raw in path.read_text(encoding="utf-8").splitlines():
-        line = raw.split("#", 1)[0].rstrip()
-        if not line.strip():
-            continue
-        indent = len(line) - len(line.lstrip())
-        stripped = line.strip()
-        if indent == 0 and stripped.endswith(":"):
-            section = stripped[:-1]
-            current = None
-            continue
-        if section == "services":
-            if stripped.startswith("- type:"):
-                current = {"type": stripped.split(":", 1)[1].strip(), "name": "", "sync_false": [], "healthCheckPath": ""}
-                services.append(current)
-            elif current is not None:
-                if stripped.startswith("name:") and indent <= 4:
-                    current["name"] = stripped.split(":", 1)[1].strip()
-                elif stripped.startswith("healthCheckPath:"):
-                    current["healthCheckPath"] = stripped.split(":", 1)[1].strip()
-                elif stripped.startswith("- key:"):
-                    pending_key = stripped.split(":", 1)[1].strip()
-                elif stripped.startswith("sync:") and "false" in stripped and pending_key:
-                    current["sync_false"].append(pending_key)
-                    pending_key = None
-                elif stripped.startswith("value:") or stripped.startswith("fromDatabase:") or stripped.startswith("- fromGroup:"):
-                    pending_key = None
-        elif section == "databases":
-            if stripped.startswith("- name:"):
-                databases.append(stripped.split(":", 1)[1].strip())
-    return {"services": services, "databases": databases}
+    return {"services": spec["services"], "databases": [d["name"] for d in spec["databases"]],
+            "env_groups": sorted({g for s in spec["services"] for g in s["fromGroups"]})}
 
 
 def check_render_state(key, owner_id):
@@ -284,12 +252,12 @@ def check_render_state(key, owner_id):
     # Env group
     status, groups = api_get(f"/env-groups{q}", key)
     names = [g.get("envGroup", {}).get("name") for g in groups] if status == 200 and isinstance(groups, list) else []
-    if ENV_GROUP:
-        if ENV_GROUP in names:
-            report("PASS", f"env group '{ENV_GROUP}' exists")
+    for group in spec["env_groups"]:
+        if group in names:
+            report("PASS", f"env group '{group}' exists")
         else:
-            report("FAIL", f"env group '{ENV_GROUP}' not found in the workspace (render.yaml links it via fromGroup — the blueprint sync fails without it)",
-                   f"Render Dashboard → Env Groups → New Environment Group → name it '{ENV_GROUP}' (SETUP.md Step 2a)")
+            report("FAIL", f"env group '{group}' is linked in render.yaml (fromGroup) but does not exist in the workspace",
+                   "python3 .claude/scripts/provision.py   (creates it empty; add shared keys in the Dashboard later)")
 
     # Services
     status, live = api_get(f"/services{q}", key)
@@ -300,8 +268,8 @@ def check_render_state(key, owner_id):
             report("PASS", f"service '{s['name']}' exists ({live_services[s['name']].get('id')})")
     if missing:
         report("FAIL", f"service(s) declared in render.yaml but not on Render: {', '.join(missing)}",
-               "Render Dashboard → Blueprints → New Blueprint Instance → select this repo (SETUP.md Step 2c). "
-               "The infra-worker never creates services; it will park a blocker until you do this.")
+               "python3 .claude/scripts/provision.py   (creates everything render.yaml declares; idempotent). "
+               "The infra-worker never creates services ad hoc; it will park a blocker until this runs.")
 
     # Databases
     if spec["databases"]:
@@ -314,7 +282,7 @@ def check_render_state(key, owner_id):
                        "Wait for the database to finish provisioning")
             else:
                 report("FAIL", f"database '{name}' declared in render.yaml but not on Render",
-                       "Created by the Blueprint Instance (SETUP.md Step 2c)")
+                       "python3 .claude/scripts/provision.py")
 
     # sync: false env vars + health
     for s in spec["services"]:
@@ -329,7 +297,7 @@ def check_render_state(key, owner_id):
             auto_keys = [k for k in empty if k not in human_keys]
             if human_keys:
                 report("FAIL", f"'{s['name']}': secret env vars unset: {', '.join(human_keys)}",
-                       "Set them in Render Dashboard → the service → Environment (SETUP.md Step 2b)")
+                       "python3 .claude/scripts/provision.py --set KEY=VALUE   (or Render Dashboard → the service → Environment)")
             if auto_keys:
                 report("WARN", f"'{s['name']}': env vars unset (infra-worker sets these from discovered URLs): {', '.join(auto_keys)}")
             if not empty:
