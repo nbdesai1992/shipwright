@@ -12,6 +12,7 @@ needs no Dashboard visit beyond account setup.
     python3 .claude/scripts/provision.py --dry-run  # plan only, no API writes
     python3 .claude/scripts/provision.py --yes      # apply without confirming
     python3 .claude/scripts/provision.py --set CLERK_SECRET_KEY=sk_...   # supply a secret
+    python3 .claude/scripts/provision.py --destroy  # delete this project's services + databases (asks you to type the slug)
 
 Idempotent: every resource is looked up by name in the pinned workspace and
 created only if missing. It never deletes anything and never overwrites an
@@ -459,6 +460,42 @@ def write_state(live_services, dbs, urls, owner):
     say("[ok  ] .claude/render-services.json written (ids + urls; no secrets)")
 
 
+# ── destroy ──────────────────────────────────────────────────────
+
+def destroy(rnd, owner, spec, confirmed):
+    """Delete every service and database render.yaml declares, by name, in the
+    pinned workspace. Env groups are left alone (they may be shared). Billing
+    stops when the resources are gone."""
+    slug = "{{PROJECT_SLUG}}"
+    q = f"?ownerId={owner['id']}&limit=100"
+    _, live_services = rnd.list_all(f"/services{q}", "service")
+    _, live_dbs = rnd.list_all(f"/postgres{q}", "postgres")
+    targets = [("service", s) for s in live_services if s.get("name") in {x["name"] for x in spec["services"]}]
+    targets += [("postgres", d) for d in live_dbs if d.get("name") in {x["name"] for x in spec["databases"]}]
+    if not targets:
+        say("   nothing to delete — no declared service or database exists in the workspace")
+        return
+    say("   will DELETE (irreversible; data in the database is lost):")
+    for kind, r in targets:
+        say(f"     {kind:8s} {r.get('name')}  ({r.get('id')})")
+    if not confirmed:
+        typed = input(f"\n   Type the project slug '{slug}' to confirm: ").strip()
+        if typed != slug:
+            say("   Aborted — nothing deleted.")
+            sys.exit(0)
+    for kind, r in targets:
+        status, body = rnd.write("DELETE", f"/{'services' if kind == 'service' else 'postgres'}/{r['id']}")
+        if status in (200, 202, 204):
+            say(f"[gone] {kind} '{r.get('name')}'")
+        else:
+            say(f"[FAIL] could not delete {kind} '{r.get('name')}' (HTTP {status}): {body.get('message', '') if isinstance(body, dict) else body}")
+    state = ROOT / ".claude" / "render-services.json"
+    if state.exists() and not rnd.dry_run:
+        state.unlink()
+        say("[ok  ] .claude/render-services.json removed")
+    say("\n== destroyed == (env groups untouched; backend/.env left in place — its DATABASE_URL is now dead)")
+
+
 # ── main ─────────────────────────────────────────────────────────
 
 def main():
@@ -469,6 +506,7 @@ def main():
     ap.add_argument("--owner", default="", help="workspace tea-... ID (default: .claude/render-workspace)")
     ap.add_argument("--branch", default="", help="branch to deploy (default: current)")
     ap.add_argument("--allow-ip", default="all", help="database external access: all | <cidr> | none (default all)")
+    ap.add_argument("--destroy", action="store_true", help="delete this project's declared services and databases")
     args = ap.parse_args()
 
     say(f"== software-factory provision: {{PROJECT_NAME}} ==")
@@ -481,10 +519,15 @@ def main():
     key, source = resolve_key()
     rnd = Render(key, dry_run=args.dry_run)
     owner = resolve_owner(rnd, args.owner)
+    say(f"   workspace : '{(owner.get('name') or '').strip()}' ({owner.get('id')})  [credential: {source}]")
+
+    if args.destroy:
+        destroy(rnd, owner, spec, confirmed=args.yes)
+        return
+
     repo, branch, pushed = resolve_repo(args.branch)
     secrets = supplied_secrets(args.set)
 
-    say(f"   workspace : '{(owner.get('name') or '').strip()}' ({owner.get('id')})  [credential: {source}]")
     say(f"   repo      : {repo} @ {branch}" + ("" if pushed else "   (WARN: branch not pushed — Render will build whatever is on GitHub)"))
     say(f"   plan      : {len(spec['databases'])} database(s), {len(spec['services'])} service(s), "
         f"{len({g for s in spec['services'] for g in s['fromGroups']})} env group(s)")

@@ -19,7 +19,7 @@ You will create accounts on three websites. Each takes a few minutes. Have them 
 
 ### 2. Render — where the app runs
 - Sign up at [render.com](https://render.com).
-- **Add a payment method:** Dashboard → your workspace name (top left) → **Billing**. The factory creates two small web services and one database. Expect roughly **$20 a month** while the project exists. You can delete everything from the Dashboard at any time.
+- **Add a payment method:** Dashboard → your workspace name (top left) → **Billing**. The factory creates two small web services and one database. Expect roughly **$20 a month** while the project exists. You can delete everything at any time with `python3 .claude/scripts/provision.py --destroy` from the project folder (it asks you to type the project name first).
 - **Connect GitHub to Render:** Dashboard → your avatar (top right) → **Account Settings → GitHub → Connect**. Grant access to all repositories, or come back after step 2 below and grant access to the new one. Render cannot read your code without this.
 - **Create an API key:** Dashboard → your avatar (top right) → **Account Settings → API Keys → Create API Key**. Copy it; the bootstrap asks for it once and remembers it for every project on your computer. This is the only credential the factory needs — there is no separate login step.
 

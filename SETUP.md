@@ -84,7 +84,7 @@ python3 .claude/scripts/provision.py                    # apply (asks once; paid
 python3 .claude/scripts/provision.py --set CLERK_SECRET_KEY=sk_...   # add a secret later
 ```
 
-It is idempotent: re-run it after editing `render.yaml` and it creates only what is missing. It never deletes and never overwrites a value you set, except the derived URL keys. This is also what the infra-worker runs as the first task of every brief, and what preflight tells you to run when something is missing.
+It is idempotent: re-run it after editing `render.yaml` and it creates only what is missing. It never deletes and never overwrites a value you set, except the derived URL keys. To spin a project down, `provision.py --destroy` deletes its declared services and databases after you type the slug (env groups are left alone). The GitHub repo is separate: `gh repo delete <owner>/<slug> --yes` needs the `delete_repo` scope (`gh auth refresh -h github.com -s delete_repo` once), or delete it in the GitHub UI. This is also what the infra-worker runs as the first task of every brief, and what preflight tells you to run when something is missing.
 
 **If it fails**, the `[FAIL]` line says why. The three real causes: no payment method on the workspace (402/403), Render cannot read the repo (connect GitHub in Render → Account Settings → GitHub and grant access to the new repo), or an expired credential (`render login`, or a fresh API key).
 
