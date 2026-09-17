@@ -39,6 +39,7 @@ class ProjectConfig:
     deploy_platform: str = "none"
     env_group_name: str = "general_builder_keys"
     render_workspace: str = ""
+    render_workspace_id: str = ""
     auth_provider: str = "none"
     design_context: str = ""
     dev_server_port: int = 3000
@@ -57,7 +58,10 @@ class ProjectConfig:
             "{{DATABASE}}": self.database,
             "{{DEPLOY_PLATFORM}}": self.deploy_platform,
             "{{ENV_GROUP_NAME}}": self.env_group_name,
-            "{{RENDER_WORKSPACE}}": self.render_workspace or "(not pinned)",
+            "{{RENDER_WORKSPACE}}": self.render_workspace or self.render_workspace_id or "(not pinned)",
+            "{{RENDER_WORKSPACE_ID}}": self.render_workspace_id or "(no ID pinned)",
+            # Prefer the ID for `render workspace set` — names can carry whitespace
+            "{{RENDER_WORKSPACE_SET_TARGET}}": self.render_workspace_id or self.render_workspace or "<workspace>",
             "{{AUTH_PROVIDER}}": self.auth_provider,
             "{{AUTH_SECTION}}": self._auth_section(),
             "{{DESIGN_CONTEXT}}": self.design_context,
@@ -78,6 +82,13 @@ class ProjectConfig:
 - **Auth is infrastructure, not a feature.** It should be set up in the first backend task (Clerk middleware) before any user-specific endpoints are built. Models that need `user_id` depend on auth being in place."""
         return ""
 
+
+# Hooks installed into .claude/hooks/ — must match what settings.json.tpl wires
+HOOK_FILES = [
+    "brief-progress-guard.sh",
+    "trajectory-log.sh",
+    "render-workspace-guard.sh",
+]
 
 # Smart defaults by framework
 FRAMEWORK_DEFAULTS = {
@@ -120,6 +131,31 @@ def ask_choice(prompt: str, choices: list, default: str = "") -> str:
             if raw in choices:
                 return raw
         print(f"  Please enter a number 1-{len(choices)}")
+
+
+def detect_render_workspace() -> tuple:
+    """Read the workspace the Render CLI is currently pointed at.
+
+    `render login` writes ~/.render/cli.yaml with `workspace: tea-...` (ID)
+    and `workspace_name: '...'`. Reading the file avoids a network call and
+    works even when the stored token has expired. Returns (name, id) with
+    both stripped — workspace names can carry trailing whitespace, which is
+    why the guard hook pins by ID as well.
+    """
+    cfg = Path.home() / ".render" / "cli.yaml"
+    if not cfg.exists():
+        return "", ""
+    name = ws_id = ""
+    for line in cfg.read_text(encoding="utf-8").splitlines():
+        m = re.match(r"^(workspace|workspace_name):\s*(.*)$", line)
+        if not m:
+            continue
+        value = m.group(2).strip().strip("'\"").strip()
+        if m.group(1) == "workspace":
+            ws_id = value
+        else:
+            name = value
+    return name, ws_id
 
 
 def interview() -> ProjectConfig:
@@ -176,20 +212,31 @@ def interview() -> ProjectConfig:
     # ── Deployment ──
     print("\n  --- Deployment ---")
     config.deploy_platform = ask_choice(
-        "Deployment platform:",
-        ["render", "vercel", "fly", "none"],
+        "Deployment platform (Render is the only supported platform in V1):",
+        ["render", "none"],
         default="render",
     )
 
-    if config.deploy_platform != "none":
+    if config.deploy_platform == "render":
         config.env_group_name = ask(
             "Render shared env group name (for API keys)", "general_builder_keys"
         )
 
-    if config.deploy_platform == "render":
-        config.render_workspace = ask(
-            "Render workspace to pin (ALL Render ops blocked outside it; blank = no pin)"
-        )
+        detected_name, detected_id = detect_render_workspace()
+        if detected_name or detected_id:
+            print(f"\n  Render CLI is logged in to workspace: '{detected_name}' ({detected_id or 'no ID'})")
+            if ask("Pin this project to that workspace? (y/n)", "y").lower() in ("y", "yes"):
+                config.render_workspace = detected_name
+                config.render_workspace_id = detected_id
+        if not config.render_workspace and not config.render_workspace_id:
+            print("  (No Render CLI login detected — run `render login` later. You can still pin by hand.)")
+            config.render_workspace = ask(
+                "Render workspace NAME to pin (ALL Render ops blocked outside it; blank = no pin)"
+            )
+            if config.render_workspace:
+                config.render_workspace_id = ask(
+                    "Render workspace ID (tea-...; from `render workspace current -o json`; blank = name only)"
+                )
 
     # ── Authentication ──
     print("\n  --- Authentication ---")
@@ -750,7 +797,8 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
                     copy_file(ref_file, skills_dir / "deploy" / ref_file.name)
         else:
             print(f"    ! No deploy adapter for '{config.deploy_platform}' — skipping")
-            print(f"      (only 'render' is currently supported)")
+            print(f"      (only 'render' is currently supported; the infra-worker will not be installed)")
+            config.deploy_platform = "none"
 
     # ── 3. Agent definitions (render from templates) ──
     print("\n  Agent definitions:")
@@ -778,21 +826,29 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
     settings_path.write_text(settings_tpl.read_text(encoding="utf-8"), encoding="utf-8")
     print(f"    + settings.json (permissions + hooks)")
 
+    # Explicit list (not a glob): these are exactly the hooks settings.json
+    # wires up, so stray files in the templates folder can never leak.
     hooks_src = templates / "hooks"
     hooks_dir = claude_dir / "hooks"
     hooks_dir.mkdir(parents=True, exist_ok=True)
-    for hook_file in sorted(hooks_src.glob("*.sh")):
-        dest = hooks_dir / hook_file.name
+    for hook_name in HOOK_FILES:
+        hook_file = hooks_src / hook_name
+        if not hook_file.exists():
+            print(f"    ! missing hook template: {hook_name}")
+            continue
+        dest = hooks_dir / hook_name
         shutil.copy2(hook_file, dest)
         dest.chmod(0o755)
-        print(f"    + .claude/hooks/{hook_file.name}")
+        print(f"    + .claude/hooks/{hook_name}")
 
     # Workspace pin — the render-workspace-guard hook fail-closes Render
-    # CLI/API commands unless the current workspace matches this file.
-    if config.deploy_platform == "render" and config.render_workspace:
+    # CLI/API commands unless the current workspace matches a line in this
+    # file. Name AND ID are written when known (names can carry whitespace).
+    if config.deploy_platform == "render" and (config.render_workspace or config.render_workspace_id):
+        pins = [p for p in (config.render_workspace, config.render_workspace_id) if p]
         pin_path = claude_dir / "render-workspace"
-        pin_path.write_text(config.render_workspace + "\n", encoding="utf-8")
-        print(f"    + .claude/render-workspace (pinned to '{config.render_workspace}')")
+        pin_path.write_text("\n".join(pins) + "\n", encoding="utf-8")
+        print(f"    + .claude/render-workspace (pinned to {' / '.join(repr(p) for p in pins)})")
 
     # ── 5. CLAUDE.md ──
     claude_tpl = templates / "CLAUDE.md.tpl"
@@ -828,7 +884,7 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
             print(f"    . .gitignore (already configured)")
     else:
         gitignore_path.write_text(
-            "# Orchestration\nsession/\n.claude/settings.local.json\n",
+            "# Orchestration (added by software-factory)\n" + "".join(f"{l}\n" for l in lines_to_add),
             encoding="utf-8",
         )
         print(f"    + .gitignore (created)")
@@ -893,6 +949,11 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
     - backend-worker   {'Installed' if config.backend_framework != 'none' else 'Skipped (no backend)'}
     - frontend-worker  {'Installed' if config.frontend_framework != 'none' else 'Skipped (no frontend)'}
     - infra-worker     {'Installed' if config.deploy_platform != 'none' else 'Skipped (no deploy platform)'}
+
+  Before the first run, make sure these are in place (see SETUP.md):
+    - render CLI logged in:  render workspace current -o json
+    - dev-browser installed: npm install -g dev-browser   (frontend screenshots)
+    - Render env group + Blueprint Instance created in the Dashboard
 
   See docs/HUMAN-INTERVENTION-GUIDE.md in the software-factory
   repo for when you'll need to step in during orchestration.

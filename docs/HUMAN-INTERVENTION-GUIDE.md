@@ -1,10 +1,12 @@
 # Human Intervention Guide
 
-When the software factory is running autonomously via `/orchestrate`, there are specific moments where human intervention is required. This guide documents every known intervention point so you know what to expect.
+When the software factory is running autonomously via `/goal` (or turn by turn via `/orchestrate`), there are specific moments where human intervention is required. This guide documents every known intervention point so you know what to expect.
 
 ## How Intervention Works
 
-Workers raise **blockers** when they hit something they can't resolve. The orchestrator surfaces these to you with clear context and options. You respond, the orchestrator records your decision, and the worker resumes.
+Workers raise **blockers** when they hit something they can't resolve. The runner records each one in the active brief under `## Blockers` — description, context, options, and an empty `Resolution:` line — and keeps working on everything that is not downstream of it. When nothing runnable remains, the brief moves to `briefs/3-blocked/` and the runner announces **NEEDS HUMAN INTERVENTION**.
+
+You resolve a blocker the same way every time: open the brief, write your answer on its `Resolution:` line, then run `/orchestrate`. The runner moves the brief back to `2-active/`, records your decision in the Progress Log, and re-plans the blocked subtasks. There is no chat-style "reply to the orchestrator" — the brief file is the channel.
 
 You can check for blockers at any time with `/status blockers`.
 
@@ -18,34 +20,31 @@ You can check for blockers at any time with `/status blockers`.
 
 **Symptom:** Blocker with type `external-action`, message about authentication failure or missing credentials.
 
-**What to do:**
-- **Render:** Run `! render login` in the Claude Code prompt (the `!` prefix runs it interactively). This opens a browser for OAuth. After login, the CLI stores credentials at `~/.render/cli.yaml`.
-- **Vercel:** Run `! vercel login`
-- **Fly.io:** Run `! fly auth login`
+**What to do:** Run `! render login` in the Claude Code prompt (the `!` prefix runs it interactively). This opens a browser for OAuth. After login, the CLI stores a token at `~/.render/cli.yaml`; the deploy skill reads the API key from that file for direct API calls, so there is no separate key to set. Then write "logged in" on the blocker's `Resolution:` line and run `/orchestrate`.
 
-**Prevention:** Log in to your deployment platform CLI before running `/orchestrate` for the first time.
+Tokens expire. If `render workspace current -o json` prints `401 Unauthorized`, the fix is the same `render login`.
 
-#### Render Setup (do this once before your first `/orchestrate` with deployment tasks)
+**Prevention:** Log in before the first run and confirm `render workspace current -o json` prints your workspace.
 
-1. **Install:** `brew install render` (or `npm install -g @render/cli`)
-2. **Authenticate:** Run `! render login` in Claude Code — opens a browser for OAuth
-3. **Verify:** `render workspace current -o json` should show your workspace
-4. **Select workspace** (if you have multiple): `render workspace set`
+#### Render Setup (do this once before your first run with deployment tasks)
+
+1. **Install:** `brew install render`
+2. **Authenticate:** `render login` — opens a browser for OAuth
+3. **Verify:** `render workspace current -o json` should show your workspace name and `tea-...` ID
+4. **Select workspace** (if you have multiple): `render workspace set <id>` — this must match the pin in `.claude/render-workspace`, or every Render command in the project is blocked by the workspace guard hook
 5. **Credentials stored at:** `~/.render/cli.yaml`
 
 ---
 
 ### 2. Database Provisioning
 
-**When:** A task requires creating a database for the first time.
+**When:** The infra-worker's first task audits Render and finds the services or database declared in `render.yaml` do not exist.
 
-**Symptom:** Blocker about database creation failure, or needing connection strings.
+**Symptom:** Blocker of type `external-action` asking you to create the Blueprint Instance.
 
-**What to do:**
-- If using Render: The infra-worker can usually provision via `render.yaml` blueprint. But if the free tier database already exists (30-day expiry), you may need to delete it first from the Render dashboard.
-- If using external database: Provide the connection string when asked. The blocker will have an `Options` field suggesting where to set it (env var, .env file, etc.).
+**What to do:** Render Dashboard → **Blueprints → New Blueprint Instance → select your repo**. Render reads `render.yaml` and creates the API service, frontend service, and Postgres database (a paid `basic-256mb` plan — it persists, unlike the free tier's 30-day expiry). The infra-worker never creates services or databases itself; it only verifies and uses what the blueprint created. Once the services show up, write "created" on the `Resolution:` line and run `/orchestrate`.
 
-**Prevention:** If you know you'll need a database, provision it before orchestration and add the connection string to your environment.
+**Prevention:** Create the Blueprint Instance right after onboarding pushes the repo — SETUP.md Step 2c.
 
 ---
 
@@ -61,9 +60,9 @@ You can check for blockers at any time with `/status blockers`.
 3. In Render Dashboard, set on the appropriate services:
    - Frontend: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`
    - Backend: `CLERK_SECRET_KEY`
-4. Reply to the orchestrator
+4. Write "keys set" on the blocker's `Resolution:` line and run `/orchestrate`
 
-**Prevention:** Create your Clerk app and set the keys in Render BEFORE running `/orchestrate`. See SETUP.md Step 2b.
+**Prevention:** Create your Clerk app and set the keys in Render BEFORE the first run. See SETUP.md Step 2b.
 
 ---
 
@@ -107,7 +106,7 @@ You can check for blockers at any time with `/status blockers`.
 1. Review the changes if desired: `git log --oneline -5` and `git diff HEAD~1`
 2. Push: `git push origin main`
 3. Render auto-deploys both services on commit
-4. Reply to the orchestrator that you've pushed
+4. Write "pushed" on the blocker's `Resolution:` line and run `/orchestrate` — the infra-worker then verifies the deploy went live with the right commit SHA
 
 **This is intentional.** Pushing requires authentication and is a natural checkpoint for you to review what was built before it goes live. The orchestrator will not push on its own.
 
@@ -125,7 +124,7 @@ You can check for blockers at any time with `/status blockers`.
 - Go to your domain registrar
 - Add the DNS records specified in the blocker (usually a CNAME or A record)
 - Wait for propagation (can take minutes to hours)
-- Tell the orchestrator to retry
+- Write "records added" on the `Resolution:` line and run `/orchestrate`
 
 **Prevention:** DNS is inherently manual and asynchronous. Plan for this to take time.
 
@@ -173,7 +172,7 @@ You can check for blockers at any time with `/status blockers`.
   - **Test failures that need design change:** The acceptance criteria may be too strict or contradictory
   - **Missing dependency:** Something the worker needs doesn't exist yet
   - **Environment issue:** Missing package, wrong Node/Python version, etc.
-- Either fix the root cause yourself and tell the orchestrator to retry, or adjust the spec with `/spec update`
+- Either fix the root cause yourself and write what you did on the `Resolution:` line, or adjust the spec with `/spec update`. Then run `/orchestrate` — the attempt counter resets for the re-planned subtask
 
 ---
 
@@ -195,27 +194,28 @@ You can check for blockers at any time with `/status blockers`.
 
 To get the smoothest autonomous run:
 
-1. **Before `/orchestrate`:**
-   - Log in to your deployment platform CLI
+1. **Before the first run:**
+   - Log in to the Render CLI and confirm the workspace
    - Have your git repo set up and pushed
    - Have API keys ready for any third-party services in the spec
-   - Provision databases if you know you'll need them
+   - Create the Blueprint Instance so the services and database exist
 
 ### Render Pre-Flight Checklist
 
-Do this **once** before your first `/orchestrate`:
+Do this **once** before your first run:
 
-- [ ] `render` CLI installed and `render workspace current -o json` works
+- [ ] `render` CLI installed and `render workspace current -o json` prints your workspace (no `401`)
+- [ ] The workspace it prints matches `.claude/render-workspace` in the project (the guard hook blocks every Render command otherwise)
+- [ ] `dev-browser` installed (`npm install -g dev-browser`) if the project has a frontend
 - [ ] `render.yaml` exists in repo root (generated during onboarding)
-- [ ] Git repo created, committed, and pushed to GitHub/GitLab
+- [ ] Git repo created, committed, and pushed to GitHub
+- [ ] Env group (`general_builder_keys` by default) exists in the workspace
 - [ ] **Blueprint Instance created**: Render Dashboard → Blueprints → "New Blueprint Instance" → select your repo
   - Render reads `render.yaml` and creates all services + database
-  - First deploy may fail (no real code yet — this is expected and fine)
-  - Database starts provisioning automatically
-- [ ] Workspace selected if you have multiple: `render workspace set`
-- [ ] API keys and secrets set as env vars in Render Dashboard (for any services that need them)
+  - The skeleton apps deploy on the first build; both `/health` endpoints should return `{"status": "ok"}`
+- [ ] `sync: false` env vars (Clerk keys) set in the Render Dashboard
 
-After this setup, the orchestrator can deploy code to Render autonomously via `render deploys create`.
+After this setup, deploys happen through your `git push` — Render auto-deploys on commit, and the infra-worker verifies each deploy went live. The factory never creates services and never pushes on its own.
 
 2. **Write detailed specs:**
    - The more specific your acceptance criteria, the fewer `unclear-requirement` blockers
@@ -223,9 +223,9 @@ After this setup, the orchestrator can deploy code to Render autonomously via `r
    - Put things in Out of Scope to prevent workers from over-engineering
 
 3. **Stay available:**
-   - Blockers pause execution until resolved
+   - Blockers are parked, not fatal — the runner keeps working on everything else, then routes the brief to `3-blocked/` when nothing runnable remains
    - Check `/status blockers` periodically
-   - Quick responses keep the pipeline moving
+   - Quick answers on the `Resolution:` lines keep the pipeline moving
 
 ---
 

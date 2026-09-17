@@ -4,15 +4,23 @@ Step-by-step instructions for creating a new project with Software Factory.
 
 ## Prerequisites
 
-- [Claude Code](https://claude.ai/claude-code) installed
-- [Render CLI](https://docs.render.com/cli) installed: `brew install render`
-- Render CLI authenticated: `render login`
-- GitHub account with push access
+Once per machine:
+
+| Tool | Install | Why |
+|------|---------|-----|
+| [Claude Code](https://claude.ai/claude-code) | per its docs | runs the factory |
+| Python 3.8+ and git 2.28+ | usually present | onboarding script; `git init -b main` |
+| [Render CLI](https://docs.render.com/cli) | `brew install render` then `render login` | infra worker deploys, reads logs, sets env vars |
+| [GitHub CLI](https://cli.github.com) | `brew install gh` then `gh auth login` | onboarding creates + pushes the repo (optional, but the smooth path) |
+| [dev-browser](https://github.com/sawyerhood/dev-browser) | `npm install -g dev-browser` (then `dev-browser install` if it cannot find Chrome) | frontend worker screenshots the UI |
+
+Accounts: Render (a workspace with billing set up — the generated blueprint uses paid `starter` services and a `basic-256mb` database), GitHub, and Clerk if you want auth.
 
 Verify Render is ready:
 ```bash
 render workspace current -o json
 ```
+This must print your workspace name and `tea-...` ID. A `401 Unauthorized` means the stored token has expired — run `render login` again. `render login` writes `~/.render/cli.yaml`, which holds the API key the deploy skill uses for direct API calls (env vars, deploy status, metrics); there is no separate API key to configure.
 
 ## Step 1: Run the Factory Onboarding
 
@@ -22,16 +30,18 @@ Point the onboarding script at a project directory. It does not have to exist ye
 python /path/to/software-factory/onboard.py ~/code/your-project
 ```
 
-The wizard asks about your project (name, description, domain, design direction, tech stack, deployment platform) and installs everything:
+The wizard asks about your project (name, description, domain, design direction, tech stack, auth). Render is the only deployment platform; the wizard reads the workspace your Render CLI is logged in to and offers to pin the project to it (name and ID — every Render command is blocked outside that workspace). Then it installs everything:
 
 - `backend/` — Skeleton FastAPI app with `/health` endpoint
 - `frontend/` — Skeleton Next.js app with `/api/health` route
 - `.claude/skills/` — 8 pre-built skills (orchestration, testing, design, deployment, etc.)
 - `.claude/agents/` — 3 worker agent definitions (backend, frontend, infra)
-- `.claude/settings.json` — Permissions for headless worker sessions
+- `.claude/settings.json` — Permissions + hook wiring
+- `.claude/hooks/` — brief-progress-guard, trajectory-log, render-workspace-guard
+- `.claude/render-workspace` — the workspace pin
 - `CLAUDE.md` — Project context, architecture, deployed URLs
 - `render.yaml` — Render blueprint defining your services + database
-- `.gitignore` — Updated with `session/`, `.env`
+- `.gitignore` — `session/`, `.env`, `.env.local`, `.claude/settings.local.json`, `.claude/.turn-marker`
 
 Finally it sets up git: `git init`, then — if the `gh` CLI is installed and authenticated — offers to create a GitHub repo, wire it up as `origin`, commit the setup, and push. Decline any of these and it prints the command to run yourself. Render's GitHub integration detects `render.yaml` as soon as the push lands.
 

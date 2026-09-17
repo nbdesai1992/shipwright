@@ -31,11 +31,18 @@ Architectural and design decisions for the factory itself. Per-project decisions
 | 23 | Blocked ≠ done | Two distinct terminals: `4-done/` (outcome: completed) vs `3-blocked/` (outcome: needs-human, announced as "NEEDS HUMAN INTERVENTION"); routing by requirement state; park-and-continue until zero runnable subtasks | Human blockers must not stop unrelated work, and must never be conflated with success |
 | 24 | Enforcement via hooks | Stop hook blocks turn end if the active brief wasn't updated; PostToolUse hook writes deterministic trajectory.jsonl per subagent call | Documentation and eval trajectory are harness-guaranteed, not instruction-followed |
 | 25 | Render workspace pin (closes the open "Render workspace name" item) | Onboarding question writes `.claude/render-workspace`; a fail-closed PreToolUse(Bash) hook blocks Render CLI/API commands unless `render workspace current` matches, and only permits `render workspace set` to the pinned name | Guarantees the factory can never touch another Render workspace/account, even if instructions drift |
+| 26 | Render-only wizard (2026-09-16) | `onboard.py` offers only `render` / `none`; Vercel and Fly removed from the menu until an adapter exists | Choosing an unsupported platform silently installed no deploy skill, leaving the infra-worker unable to load its skills |
+| 27 | Workspace pin auto-detected, name + ID | Onboarding reads `~/.render/cli.yaml` (`workspace`, `workspace_name`) and writes both lines to `.claude/render-workspace`; templates use the ID for `render workspace set` | Workspace names can carry trailing whitespace; the ID is stable. No network call needed, so it works even with an expired token |
+| 28 | Explicit hook list | Hooks copied by name from `HOOK_FILES`, not by globbing `*.sh` | A glob leaked iCloud "file 2.sh" duplicates into every onboarded project |
+| 29 | Full gitignore on fresh projects | The "create" branch writes the same list as the "append" branch (`session/`, `.env`, `.env.local`, `.claude/.turn-marker`, `.claude/settings.local.json`) | A brand-new project would otherwise have committed `backend/.env` (real DB credentials) at the first push checkpoint |
 
 ## Open (V2 Candidates)
 
-- **Vercel deploy adapter** — Needs SKILL.md.tpl with Vercel CLI commands and API reference
-- **Fly.io deploy adapter** — Needs SKILL.md.tpl with flyctl commands
+- **Replace dev-browser with Claude Code's built-in browser** — verify-ui, the frontend-worker, and settings.json all assume the third-party `dev-browser` CLI; the built-in browser (July 2026) would remove the only undocumented install step
+- **Onboarding pre-flight check** — have `onboard.py` report the status of `render` (login + workspace), `gh`, `dev-browser`, node, and python before the interview, so a net-new user learns what is missing in one place
+- **Refresh skeleton versions** — the Next.js skeleton pins `next ^14` / `react ^18`; verify a newer pair builds on Render before bumping
+- **Vercel deploy adapter** — Needs SKILL.md.tpl with Vercel CLI commands and API reference, plus a wizard choice
+- **Fly.io deploy adapter** — Needs SKILL.md.tpl with flyctl commands, plus a wizard choice
 - **Parallel worker execution** — Currently sequential; could speed up independent tasks within a phase
 - **Authentication provider templates** — Clerk, Auth0, NextAuth patterns as optional skills
 - **Worker budget per type** — Frontend workers may need higher budgets than backend (more iterations for visual work)

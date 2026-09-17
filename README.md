@@ -64,12 +64,26 @@ your-project/
 │                           #   3-blocked/ 4-done/ — folder location IS status
 └── .claude/
     ├── settings.json       # Permissions + hooks wiring
-    ├── hooks/              # brief-progress-guard (enforced docs) + trajectory-log
+    ├── hooks/              # brief-progress-guard (enforced docs), trajectory-log,
+    │                       #   render-workspace-guard (fail-closed workspace pin)
     ├── agents/             # 3 worker subagent definitions
     └── skills/             # 8 skills (orchestration + development + deployment)
 ```
 
 ## Usage
+
+The full walkthrough, including the Render Dashboard steps, is in [SETUP.md](SETUP.md). The short version:
+
+### Step 0: Install the tools (once per machine)
+
+```bash
+brew install render gh          # Render CLI + GitHub CLI
+render login                    # opens a browser; stores a token in ~/.render/cli.yaml
+gh auth login
+npm install -g dev-browser      # headless browser the frontend worker uses for screenshots
+```
+
+Plus [Claude Code](https://claude.ai/claude-code), Python 3.8+, and git 2.28+. Verify Render is ready with `render workspace current -o json` — if it prints `401 Unauthorized`, run `render login` again (tokens expire).
 
 ### Step 1: Clone the factory (once)
 
@@ -85,15 +99,16 @@ Keep this somewhere permanent. It's the source — you'll point it at each new p
 python /path/to/software-factory/onboard.py ~/code/my-new-app
 ```
 
-The directory doesn't need to exist — the wizard offers to create it. It asks about your stack (Next.js? FastAPI? PostgreSQL? Render?) and installs everything: 8 skills, 3 worker agents, CLAUDE.md, render.yaml, settings.json, hooks, and skeleton `backend/` + `frontend/` apps. Then it runs `git init` and — if the `gh` CLI is authenticated — offers to create the GitHub repo, commit, and push. Point it at an existing clone instead and it leaves your repo and remote untouched.
+The directory doesn't need to exist — the wizard offers to create it. It asks about your stack (Next.js? FastAPI? PostgreSQL? Clerk?), detects the Render workspace your CLI is logged in to and offers to pin the project to it, then installs everything: 8 skills, 3 worker agents, CLAUDE.md, render.yaml, settings.json, hooks, and skeleton `backend/` + `frontend/` apps. Finally it runs `git init` and — if the `gh` CLI is authenticated — offers to create the GitHub repo, commit, and push. Point it at an existing clone instead and it leaves your repo and remote untouched.
 
-### Step 3: Set up Render (one-time)
+### Step 3: Set up Render (one-time, in the Dashboard)
 
-```bash
-brew install render && render login
-```
+1. **Env group** — create `general_builder_keys` (or the name you chose) and add shared keys such as `ANTHROPIC_API_KEY`.
+2. **Clerk keys** (if you chose Clerk) — create the Clerk app and have its publishable + secret keys ready.
+3. **Blueprints → New Blueprint Instance → select your repo.** Render reads `render.yaml` and creates the API service, frontend service, and Postgres database. The skeleton apps deploy on the first build; both `/health` endpoints should return `{"status": "ok"}`.
+4. Set the `sync: false` env vars (Clerk keys) on the new services.
 
-Then in the Render Dashboard: **Blueprints → New Blueprint Instance → select your repo.** Render reads `render.yaml` and creates your services + database. First deploy will fail (no code yet) — that's expected.
+Render cannot create Blueprint Instances from the API or CLI, so this step is always yours. The infra worker verifies the services exist and uses them; it never creates them.
 
 ### Step 4: Build
 
@@ -169,9 +184,9 @@ The runner provisions infrastructure, writes backend code tested against your re
 
 ## Deploy Platform
 
-**V1:** Render — full adapter with CLI reference, API docs, blueprint schema, pricing guide, and starter `render.yaml` generation (monorepo with `rootDir` per service).
+**Render only.** The factory ships one adapter: CLI reference, API docs, blueprint schema, pricing guide, starter `render.yaml` generation (monorepo with `rootDir` per service), and a fail-closed hook that pins every project to one Render workspace. The onboarding wizard offers `render` or `none`; nothing else is wired up.
 
-**Future:** Vercel, Fly.io. To add a platform: `factory/templates/skills/deploy/{platform}/SKILL.md.tpl`.
+To add a platform later: `factory/templates/skills/deploy/{platform}/SKILL.md.tpl` plus a choice in `onboard.py`.
 
 ## Human In The Loop
 

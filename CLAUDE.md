@@ -23,7 +23,7 @@ software-factory/
 │       ├── CLAUDE.md.tpl
 │       ├── settings.json.tpl   # Permissions + hook wiring
 │       ├── briefs-README.md    # Brief board README (copied to briefs/)
-│       ├── hooks/          # brief-progress-guard.sh, trajectory-log.sh
+│       ├── hooks/          # brief-progress-guard.sh, trajectory-log.sh, render-workspace-guard.sh
 │       ├── agents/         # Worker subagent definitions
 │       └── skills/         # Skills that need project context
 │           ├── verify-ui/  # Screenshot verification (needs server config)
@@ -44,8 +44,10 @@ software-factory/
 
 ## Development Guidelines
 
-- Generic skills should contain NO project-specific content
+- Generic skills should contain NO project-specific content (stack-level references to Render, render.yaml, and Clerk are accepted in V1 — the factory is Render-only)
 - Templates use `{{PLACEHOLDER}}` syntax (simple string replacement, no Jinja2)
-- New deploy platform adapters go in `factory/templates/skills/deploy/{platform}/`
+- Render is the only deploy platform. The onboarding wizard offers `render` or `none`; a new adapter needs `factory/templates/skills/deploy/{platform}/SKILL.md.tpl` AND a wizard choice in `onboard.py`
+- Hooks installed into projects are listed explicitly in `HOOK_FILES` in `onboard.py` (must match `settings.json.tpl`) — never glob the templates folder
+- Third-party runtime dependency: `dev-browser` (frontend screenshots). Prerequisites are documented in SETUP.md; keep them in sync when adding a dependency
 - The runner delegates subtasks to native worker subagents (Task tool, one at a time, sequential); agent definitions live in `.claude/agents/` with skills preloaded via their `skills:` frontmatter
 - Target projects get a committed `briefs/` Kanban board (1-backlog / 2-active / 3-blocked / 4-done — folder location is status) plus hooks in `.claude/hooks/` that enforce per-turn brief documentation and deterministic trajectory logging

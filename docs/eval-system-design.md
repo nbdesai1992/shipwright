@@ -1,5 +1,7 @@
 # Eval System Design: Software Factory
 
+> **Status (2026-09-16): design document, predates the brief-board architecture.** Written when workers were spawned with `claude -p --agent` and state lived in `session/spec.md`, `session/phases/`, and `session/tasks/`. Since decisions #20–#24 the factory uses native subagents (Task tool), a committed `briefs/` Kanban board, and hook-written `session/{brief-id}/trajectory.jsonl`. The eval tasks, scoring rubrics, and best@k framing still apply; the spawn mechanics, file paths, and "Factory Changes Required" sections do not. Treat `trajectory.jsonl` (hook-written, deterministic) as the ground-truth trace the harness should read.
+
 ## The Core Thesis
 
 The software factory produces working software from specs. Today we can't answer: "How good is the software it produces?" or "Did it follow its own process?" We have trajectory logging and compliance self-audits, but no systematic way to measure, compare, or improve.

@@ -11,13 +11,13 @@ argument-hint: "[logs|deploy|status|create|blueprint|help]"
 
 ## Pre-Flight: Verify Workspace
 
-The ONLY authorized workspace for this project is **{{RENDER_WORKSPACE}}**. A PreToolUse hook (`render-workspace-guard`) enforces this mechanically: Render CLI/API commands are blocked unless `render workspace current` matches the pin in `.claude/render-workspace`, and `render workspace set` may only target the pinned workspace.
+The ONLY authorized workspace for this project is **{{RENDER_WORKSPACE}}** (ID: `{{RENDER_WORKSPACE_ID}}`). A PreToolUse hook (`render-workspace-guard`) enforces this mechanically: Render CLI/API commands are blocked unless `render workspace current` matches the pin in `.claude/render-workspace`, and `render workspace set` may only target the pinned workspace.
 
 Before ANY Render operation, verify:
 ```bash
 render workspace current -o json
 ```
-If it doesn't match **{{RENDER_WORKSPACE}}**, run `render workspace set {{RENDER_WORKSPACE}}`. If that fails, raise a blocker. NEVER operate in any other workspace — services would be created or modified in the wrong account. Do not edit or delete `.claude/render-workspace` to get around a block.
+If it doesn't match **{{RENDER_WORKSPACE}}**, run `render workspace set {{RENDER_WORKSPACE_SET_TARGET}}`. If that fails (e.g. `401 Unauthorized` — the stored login token has expired), raise an `external-action` blocker asking the human to run `render login`; there is no way to re-authenticate from inside a worker. NEVER operate in any other workspace — services would be created or modified in the wrong account. Do not edit or delete `.claude/render-workspace` to get around a block.
 
 ## render.yaml Is the Source of Truth
 

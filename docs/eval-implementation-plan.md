@@ -1,5 +1,7 @@
 # Eval Implementation Plan
 
+> **Status (2026-09-16): implementation plan, predates the brief-board architecture.** It proposes switching the worker spawn command in `worker-prompts.md` to `--output-format stream-json`; that file and the `claude -p` worker spawn no longer exist (decision #20). The core idea survives: capture ground truth externally and score the self-reported `trajectory.md` against it. Today the external ground truth is `session/{brief-id}/trajectory.jsonl`, written by the PostToolUse hook, plus the runner's own stream-json when the harness runs `claude -p "/orchestrate"`. Re-plan the "Factory Changes Required" section before building.
+
 ## Scope
 
 4 eval tasks (dropping Task 5 incremental and self-improvement loop). Focus on:
