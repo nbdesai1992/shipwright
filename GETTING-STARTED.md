@@ -1,122 +1,111 @@
 # Getting Started
 
-From nothing to a live web app in three steps:
+You will end up with a working web app of your own: its code on GitHub, running on the internet, and Claude Code set up to build whatever you describe. Three steps.
 
-1. **Clone this repo.**
-2. **Run the wizard.** It asks four questions.
-3. **A new project repo is created** — on your computer, on GitHub, and running on Render — with Claude Code set up inside it to build whatever you describe.
+1. **Get this folder onto your Mac.**
+2. **Open Claude Code in it and type `/start`.**
+3. **Answer Claude's questions.** It installs what's missing, walks you through the two accounts you need, and creates the project.
 
-This guide is for macOS and assumes you can open the Terminal app and paste commands. You do not need to know how to code.
-
----
-
-## Before you start: three accounts
-
-You will create accounts on three websites. Each takes a few minutes. Have them done before you open the Terminal.
-
-### 1. GitHub — where the code lives
-- Sign up at [github.com](https://github.com). Free.
-
-### 2. Render — where the app runs
-- Sign up at [render.com](https://render.com).
-- **Add a payment method:** Dashboard → your workspace name (top left) → **Billing**. The factory creates two small web services and one database. Expect roughly **$20 a month** while the project exists. You can delete everything at any time with `python3 .claude/scripts/provision.py --destroy` from the project folder (it asks you to type the project name first).
-- **Connect GitHub to Render:** Dashboard → your avatar (top right) → **Account Settings → GitHub → Connect**. Grant access to all repositories, or come back after step 2 below and grant access to the new one. Render cannot read your code without this.
-- **Create an API key:** Dashboard → your avatar (top right) → **Account Settings → API Keys → Create API Key**. Copy it; the bootstrap asks for it once and remembers it for every project on your computer. This is the only credential the factory needs — there is no separate login step.
-
-### 3. Clerk — only if people will sign in to your app
-- Sign up at [clerk.com](https://clerk.com). Free to start.
-- **Create Application**, name it after your project, then open **API Keys** and keep the page open. The wizard asks for the two keys shown there.
-- If your app has no user accounts, skip Clerk entirely.
+You do not need to know how to code. You do need a Mac, [Claude Code](https://claude.ai/code) installed and signed in, about 20 minutes, and a credit card for the hosting (about **$20 a month** per project while it exists; you can delete it any time).
 
 ---
 
-## Step 1: Clone this repo and run the bootstrap
+## Step 1: Get the factory onto your Mac
 
-Open **Terminal** (press ⌘-Space, type `Terminal`, press Enter). Paste these lines one at a time:
+Open **Terminal** (press ⌘-Space, type `Terminal`, press Enter). Paste this line and press Enter:
 
 ```bash
 git clone https://github.com/nbdesai1992/software-factory.git ~/software-factory
-~/software-factory/bootstrap.sh ~/code/my-app
 ```
 
-Replace `my-app` with a short name for your project (lowercase, dashes instead of spaces). The bootstrap installs the tools the factory needs and logs you in:
+If a window pops up offering to install "command line developer tools", click **Install**, wait for it to finish, then paste the line again. That is Apple's free toolkit; you only do this once.
 
-- If it says Homebrew is missing, install it from [brew.sh](https://brew.sh) (one paste), then run the bootstrap again.
-- When your browser opens asking you to log in to **GitHub**, approve it and return to the Terminal.
-- When it asks for your **Render API key**, paste the key you created (typing is hidden). It is stored once, machine-wide.
+## Step 2: Open Claude Code there and type /start
 
-It then starts the wizard automatically.
-
-## Step 2: Answer the wizard
-
-Press Enter to accept the first question's default (Quick Start). Then:
-
-| Question | Example answer |
-|----------|----------------|
-| What is the project called? | `Invoice Tracker` |
-| In one sentence, what does it do? | `Lets freelancers send invoices and see who has paid.` |
-| Who is it for, or what world does it live in? | `freelancers sending invoices` |
-| Will people need to sign in with an account? | `y` if your app has user accounts, otherwise `n` |
-| Clerk keys (only if you said y) | paste the two keys from Clerk. Typing is hidden. |
-
-Then say **yes** to each of: create the GitHub repo, commit, push, and create the Render services. The last one takes a couple of minutes while Render sets up the database. When it finishes you will see two web addresses ending in `onrender.com`. Those are your app. Right now they show a placeholder page.
-
-## Step 3: Check, then build
-
-Still in Terminal:
+Paste this line and press Enter:
 
 ```bash
-cd ~/code/my-app
-python3 .claude/scripts/preflight.py
+cd ~/software-factory && claude
 ```
 
-Every line should say `PASS` or `WARN`. A `FAIL` line comes with a fix underneath; do the fix and run it again. Then:
+Claude Code opens. Type:
+
+```
+/start
+```
+
+## Step 3: Follow along
+
+Claude takes it from here, one step at a time. It will:
+
+1. **Check your Mac** and install two small helper tools if they're missing. It may ask you to paste a line beginning with `!` — that runs a command for you and sometimes asks for your Mac password.
+2. **Log you in to GitHub.** GitHub is where the code lives. If you don't have an account, create one at [github.com](https://github.com) (free) when Claude asks.
+3. **Set up Render.** Render is where the app runs. Claude gives you the exact clicks, one at a time: create an account, add a card, allow Render to read your GitHub, create an "API key" and hand it to Claude. See the appendix below if you want to read ahead.
+4. **Ask four questions:** what the project is called, what it does in one sentence, who it's for, and whether people will sign in.
+5. **Ask before spending money**, then create everything. About five minutes. At the end it shows you two web addresses. That's your app, with a placeholder page.
+6. **Tell you how to start building**, which is the next section.
+
+## Then: build your app
+
+Claude's last message tells you to open a **new** Terminal window and paste a line like:
 
 ```bash
-claude
+cd ~/code/my-app && claude
 ```
 
-Claude Code opens inside your project. Type:
+That opens Claude Code inside your new project. Type `/spec create "` and describe what you want the app to do, then close the quote. Claude interviews you about it, writes a plan, and gives you a line beginning with `/goal`. Paste that line. The factory builds, tests, designs, and publishes on its own. Whenever it needs a decision from you, it asks a short question with options; answer in the chat. When it finishes, it gives you the live address.
 
-```
-/spec create "describe what you want the app to do"
-```
+Useful while it runs:
 
-Claude interviews you about the product, in plain language, then writes a plan called a **brief** and hands you a line starting with `/goal`. Paste that line. The factory now works on its own: it builds the app, tests it, designs the screens, and puts each piece live on Render. It stops only when it needs a decision from you, and it asks that as a short question with options. Answer in the chat.
-
-When it finishes, it gives you the live address and tells you what you can do there.
+- `/status` shows where things stand.
+- `/preflight` checks that everything is connected, and tells you the fix if not.
+- Closing the window loses nothing. Reopen the project with the same `cd … && claude` line and type `/orchestrate` to continue.
 
 ---
 
-## While it runs
+## Where your keys live
 
-- `/status` shows where things stand.
-- If the run ends with **NEEDS HUMAN INTERVENTION**, read the questions it lists, answer them in the chat, and type `/orchestrate` to continue.
-- Every change is saved to your GitHub repo, so nothing is lost if you close the Terminal. Open it again, run `claude`, and type `/orchestrate` to pick up where it left off.
-- A full build uses a meaningful amount of Claude usage. Long runs are normal.
+All of these are private to your Mac and your project. None of them are ever put into GitHub.
+
+| Key | Where it is stored | Used for |
+|-----|--------------------|----------|
+| Render API key | Your Mac's Claude settings file (`~/.claude/settings.json`), once, for every project | Letting the factory create and manage your servers |
+| Clerk keys (only if sign-in) | The project's private settings file (`.claude/settings.local.json`) | Sign-in |
+| Database password | The project's `backend/.env` | Testing against the real database |
+
+If you ever need to replace the Render key: in the factory folder, paste `! python3 onboard.py --set-render-key` and enter the new one.
+
+## Appendix: Render account setup, click by click
+
+Claude walks you through this during `/start`; this is the same thing written down.
+
+1. **Create an account** at [render.com](https://render.com). Sign up with GitHub or email. You land in the Dashboard with a workspace already created for you.
+2. **Add a payment method.** Top-left, click your workspace name → **Billing** → **Add payment method**. Your app uses two small servers and a database, roughly $20 a month total. Deleting the project stops the charge.
+3. **Connect GitHub.** Top-right, click your avatar → **Account Settings** → **GitHub** → **Connect**. GitHub asks which repositories Render may read; choose **All repositories** so every future project works without repeating this.
+4. **Create an API key.** Top-right avatar → **Account Settings** → **API Keys** → **Create API Key**. Copy it. Back in Claude Code, paste `! python3 onboard.py --set-render-key` and enter the key when asked (typing is hidden). Claude confirms it was stored.
+
+That is everything Render ever needs from you. You never create servers in the Dashboard; the factory does it.
 
 ## If something goes wrong
 
-Run the readiness check first; it names the cause and the fix:
+- During `/start`: Claude explains the error and how to fix it, then repeats the step. It is always safe to type `/start` again.
+- Inside a project: type `/preflight`. Every line says PASS, WARN, or FAIL, and each FAIL comes with its fix.
+- The three most common causes are: no card on Render, Render not allowed to read your GitHub, or a Render key that was deleted. Each takes a minute to fix in the Render Dashboard.
+
+## Deleting a project
+
+In the project folder, in Terminal:
 
 ```bash
-python3 .claude/scripts/preflight.py
+python3 .claude/scripts/provision.py --destroy
 ```
 
-The three most common causes:
-
-| What you see | What it means | Fix |
-|--------------|---------------|-----|
-| `Render rejected the key (401)` | The API key was deleted or is wrong | Create a new one in the Render Dashboard and run `python3 ~/software-factory/onboard.py --set-render-key` |
-| `could not create service … repo` | Render cannot see your GitHub repo | Render Dashboard → Account Settings → GitHub → grant access to the repo, then `python3 .claude/scripts/provision.py` |
-| `402` or `403` when creating a database or service | No payment method on the Render workspace | Render Dashboard → Billing, then `python3 .claude/scripts/provision.py` |
+It lists what will be deleted, asks you to type the project's name to confirm, and removes the servers and database. Render stops billing. Then delete the repository on GitHub: open it at github.com → **Settings** → scroll to the bottom → **Delete this repository**.
 
 ## Starting another project
 
-Run the bootstrap again with a new folder name. Each project is its own repo and its own set of Render services.
+Open Claude Code in the factory folder again (`cd ~/software-factory && claude`) and type `/start`. The account steps are already done, so it goes straight to the four questions.
 
-```bash
-~/software-factory/bootstrap.sh ~/code/another-app
-```
+---
 
-Developers who want to choose the tech stack, keep a manual review step before each deploy, or add a platform: see [SETUP.md](SETUP.md) and answer `y` to the wizard's first question.
+Developers who want to choose the tech stack, keep a manual review step before each deploy, or run the wizard directly: see [SETUP.md](SETUP.md).

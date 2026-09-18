@@ -7,7 +7,15 @@ argument-hint: "[logs|deploy|status|create|blueprint|help]"
 
 # Render Operations Guide
 
-**CLI constraint:** Always use `-o json` or `-o text` — interactive mode doesn't work in this shell.
+**The Render CLI is optional.** Everything below has an API equivalent and the API key is always available (see Authentication). Prefer `curl` against `https://api.render.com/v1` — it works on every machine. If the CLI happens to be installed, `-o json`/`-o text` are required (interactive mode doesn't work in this shell) and it honors `RENDER_API_KEY`.
+
+```bash
+export RENDER_API_KEY=$(.claude/scripts/render-api-key.sh)
+# Logs without the CLI (last 100 lines for a service; add &type=build for build logs)
+curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+  "https://api.render.com/v1/logs?ownerId=<OWNER_ID>&resource=<SERVICE_ID>&limit=100"
+# Service ids, urls, owner id: cat .claude/render-services.json
+```
 
 ## Pre-Flight: Verify Workspace
 

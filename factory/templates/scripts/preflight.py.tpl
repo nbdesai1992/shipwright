@@ -94,10 +94,9 @@ def check_tools():
     if DEPLOY_PLATFORM == "render":
         if shutil.which("render"):
             code, out = run(["render", "--version"])
-            report("PASS", f"render CLI: {out.splitlines()[0] if out else 'present'}")
+            report("PASS", f"render CLI: {out.splitlines()[0] if out else 'present'} (optional)")
         else:
-            report("FAIL", "render CLI not found",
-                   "brew install render && render login   (docs.render.com/cli)")
+            report("PASS", "render CLI not installed — fine, the factory uses the Render API")
 
     if shutil.which("gh"):
         code, _ = run(["gh", "auth", "status"])
@@ -212,11 +211,12 @@ def check_render_auth():
         owner = matches[0]
         report("PASS", f"pinned workspace accessible: '{owner.get('name','').strip()}' ({owner.get('id')})")
 
-        code, current = run(["render", "workspace", "current", "-o", "json"])
-        if code != 0 or not current:
+        code, current = run(["render", "workspace", "current", "-o", "json"]) if shutil.which("render") else (1, "")
+        if not shutil.which("render"):
+            pass  # no CLI: the guard hook and every script use the API key directly
+        elif code != 0 or not current:
             report("WARN", "render CLI cannot report its current workspace (not logged in, or token expired)",
-                   "CLI commands (render services list, render logs) need `render login` OR RENDER_API_KEY exported "
-                   "in the shell. The guard hook falls back to the API key when the CLI is unavailable.")
+                   "Optional. Export RENDER_API_KEY in the shell or `render login`; the guard hook already falls back to the API key.")
         elif not any(p in current for p in pins):
             report("FAIL", "render CLI is pointed at a DIFFERENT workspace than the pin — the guard hook will block every Render command",
                    f"render workspace set {owner.get('id')}")

@@ -26,13 +26,11 @@ Every Render call in the factory goes through `.claude/scripts/render-api-key.sh
 
 **Prevention:** Run `/preflight` before the first run. It reports the credential source, whether it has expired, and whether it can see the pinned workspace.
 
-#### Render Setup (do this once before your first run with deployment tasks)
+#### Render Setup (done once, by `/start` or by hand)
 
-1. **Install:** `brew install render`
-2. **Authenticate:** `render login` — opens a browser for OAuth
-3. **Verify:** `render workspace current -o json` should show your workspace name and `tea-...` ID
-4. **Select workspace** (if you have multiple): `render workspace set <id>` — this must match the pin in `.claude/render-workspace`, or every Render command in the project is blocked by the workspace guard hook
-5. **Credentials stored at:** `~/.render/cli.yaml`
+1. **API key:** Render Dashboard → avatar → Account Settings → API Keys → Create; store it with `python3 onboard.py --set-render-key` (goes into `~/.claude/settings.json`, machine-wide)
+2. **Workspace pin:** written by the wizard to `.claude/render-workspace`; the guard hook blocks Render operations outside it
+3. **Render CLI:** optional. If installed, it honors `RENDER_API_KEY`; `render workspace set <id>` must match the pin
 
 ---
 

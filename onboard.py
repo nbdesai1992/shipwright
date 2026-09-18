@@ -12,6 +12,11 @@ Usage:
     python onboard.py --reconfigure         # Re-run with saved config
     python onboard.py --preflight [path]    # Only run the project's readiness check
     python onboard.py --set-render-key      # Store a Render API key machine-wide (~/.claude/settings.json)
+    python onboard.py --check               # Machine check only (tools, credential)
+
+Non-interactive (how the /start skill drives it):
+    python onboard.py ~/code/my-app --quick --yes --name "My App" \
+        --description "..." --domain "..." --login no [--clerk-publishable-key pk_... --clerk-secret-key sk_...]
 """
 
 import getpass
@@ -168,13 +173,67 @@ FRAMEWORK_DEFAULTS = {
 # Interactive Questionnaire
 # ──────────────────────────────────────────────
 
-def ask(prompt: str, default: str = "") -> str:
+# Non-interactive driving (used by the /start skill, tests, CI):
+#   --yes                       accept every default and every y/n confirmation
+#   --name/--description/--domain/--login yes|no/--clerk-publishable-key/
+#   --clerk-secret-key/--render-api-key VALUE   answers for the Quick Start questions
+#   --no-github / --no-provision                skip those steps
+ANSWERS: dict = {}
+AUTO_YES = False
+
+
+def parse_flags(argv: list) -> list:
+    """Pull --key value / --key=value answers out of argv; return the remaining positional args."""
+    global AUTO_YES
+    keyed = {"--name": "name", "--description": "description", "--domain": "domain", "--login": "login",
+             "--clerk-publishable-key": "clerk_pk", "--clerk-secret-key": "clerk_sk",
+             "--render-api-key": "render_api_key"}
+    rest, i = [], 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--yes" or a == "-y":
+            AUTO_YES = True
+        elif "=" in a and a.split("=", 1)[0] in keyed:
+            k, v = a.split("=", 1)
+            ANSWERS[keyed[k]] = v
+        elif a in keyed and i + 1 < len(argv):
+            ANSWERS[keyed[a]] = argv[i + 1]
+            i += 1
+        elif a.startswith("--"):
+            ANSWERS.setdefault("_flags", set()).add(a)
+        else:
+            rest.append(a)
+        i += 1
+    return rest
+
+
+def has_flag(name: str) -> bool:
+    return name in ANSWERS.get("_flags", set())
+
+
+def ask(prompt: str, default: str = "", key: str = "") -> str:
+    if key and key in ANSWERS:
+        return ANSWERS[key]
+    if AUTO_YES and default:
+        return default
     suffix = f" [{default}]" if default else ""
     result = input(f"  {prompt}{suffix}: ").strip()
     return result or default
 
 
+def confirm(prompt: str, default_yes: bool = True) -> bool:
+    """y/n question. --yes answers the default without prompting."""
+    if AUTO_YES:
+        return default_yes
+    raw = input(f"  {prompt} [{'Y/n' if default_yes else 'y/N'}]: ").strip().lower()
+    if not raw:
+        return default_yes
+    return raw in ("y", "yes")
+
+
 def ask_choice(prompt: str, choices: list, default: str = "") -> str:
+    if AUTO_YES and default:
+        return default
     print(f"\n  {prompt}")
     for i, choice in enumerate(choices, 1):
         marker = " *" if choice == default else ""
@@ -247,7 +306,7 @@ def render_api_owners(key: str):
 def set_render_key_interactive() -> int:
     print("\n  Render API key → ~/.claude/settings.json (machine-wide; every project and every Claude Code session).")
     print("  Create one at: Render Dashboard → your avatar → Account Settings → API Keys → Create API Key.")
-    key = ask_secret("  Paste the key (rnd_...): ")
+    key = ask_secret("  Paste the key (rnd_...): ", key="render_api_key")
     if not key:
         print("  Nothing stored.")
         return 1
@@ -280,8 +339,10 @@ def machine_preflight():
     ok, out = run_cmd(["git", "--version"], Path.cwd())
     line(ok, out if ok else "git", "install git 2.28+")
 
-    render_ok = shutil.which("render") is not None
-    line(render_ok, "render CLI", "brew install render")
+    if shutil.which("render"):
+        line(True, "render CLI (optional)")
+    else:
+        print("    [opt] render CLI not installed — fine; the factory talks to Render through its API")
     api_key, key_source = detect_render_api_key()
     if api_key:
         line(True, f"Render API key ({key_source})")
@@ -366,8 +427,12 @@ def detect_render_workspace() -> tuple:
     return name, ws_id
 
 
-def ask_secret(prompt: str) -> str:
-    """Hidden input on a terminal; plain input when piped (tests, CI)."""
+def ask_secret(prompt: str, key: str = "") -> str:
+    """Hidden input on a terminal; plain input when piped (tests, CI); flag value when supplied."""
+    if key and key in ANSWERS:
+        return ANSWERS[key].strip()
+    if AUTO_YES:
+        return ""
     try:
         return (getpass.getpass(prompt) if sys.stdin.isatty() else input(prompt)).strip()
     except (EOFError, KeyboardInterrupt):
@@ -383,9 +448,9 @@ def ask_render_api_key(config: ProjectConfig):
         return
     print("\n  Render needs an API key so the factory can create and manage your services.")
     print("  Render Dashboard → your avatar → Account Settings → API Keys → Create API Key. Input is hidden.")
-    key = ask_secret("  Render API key (rnd_...; blank = fall back to `render login`): ")
+    key = ask_secret("  Render API key (rnd_...; blank = fall back to `render login`): ", key="render_api_key")
     config.render_api_key_input = key
-    if key and ask("  Remember it for every project on this machine (~/.claude/settings.json)? (y/n)", "y").lower() in ("y", "yes"):
+    if key and confirm("Remember it for every project on this machine (~/.claude/settings.json)?"):
         store_user_setting_env("RENDER_API_KEY", key)
         print("  + stored machine-wide")
 
@@ -415,8 +480,8 @@ def ask_clerk_keys(config: ProjectConfig):
     print("\n  Sign-in is handled by Clerk (clerk.com). Create an application there, then paste its two keys.")
     print("  Blank is fine — you can add them later; sign-in just won't work until you do. Input is hidden.")
     secrets = {}
-    pk = ask_secret("  Clerk publishable key (pk_...): ")
-    sk = ask_secret("  Clerk secret key (sk_...): ")
+    pk = ask_secret("  Clerk publishable key (pk_...): ", key="clerk_pk")
+    sk = ask_secret("  Clerk secret key (sk_...): ", key="clerk_sk")
     if pk:
         secrets["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"] = pk
     if sk:
@@ -438,10 +503,10 @@ def interview_quick() -> ProjectConfig:
     print("  hosted on Render, in one GitHub repository. Press Enter to accept [defaults].")
     print()
 
-    config.project_name = ask("What is the project called?")
+    config.project_name = ask("What is the project called?", key="name")
     config.project_slug = re.sub(r"-+", "-", re.sub(r"[^a-z0-9-]", "-", config.project_name.lower())).strip("-")
-    config.project_description = ask("In one sentence, what does it do?")
-    config.domain = ask("Who is it for, or what world does it live in? (e.g. 'freelancers sending invoices')")
+    config.project_description = ask("In one sentence, what does it do?", key="description")
+    config.domain = ask("Who is it for, or what world does it live in? (e.g. 'freelancers sending invoices')", key="domain")
     config.design_context = (
         f"This product lives in the world of {config.domain}. "
         f"Design choices should feel domain-specific, not generic SaaS. "
@@ -455,7 +520,7 @@ def interview_quick() -> ProjectConfig:
     fe = FRAMEWORK_DEFAULTS["nextjs"]
     config.dev_server_port, config.dev_server_command = fe["port"], fe["command"]
 
-    login = ask("Will people need to sign in with an account? (y/n)", "n").lower() in ("y", "yes")
+    login = ask("Will people need to sign in with an account? (y/n)", "n", key="login").lower() in ("y", "yes")
     config.auth_provider = "clerk" if login else "none"
     if login:
         ask_clerk_keys(config)
@@ -1020,11 +1085,13 @@ def setup_git_repo(config: ProjectConfig, target: Path) -> bool:
         print(f"    . remote '{remotes.split()[0]}' already configured")
     else:
         gh_ok, _ = run_cmd(["gh", "auth", "status"], target)
-        if not gh_ok:
+        if has_flag("--no-github"):
+            print("    - skipped GitHub repo creation (--no-github)")
+        elif not gh_ok:
             print("    - no GitHub remote (gh CLI missing or not authenticated)")
             print(f"      Add one later: gh repo create {config.project_slug} "
                   f"--private --source=. --remote=origin --push")
-        elif ask(f"Create the GitHub repo '{config.project_slug}' now? (y/n)", "y").lower() in ("y", "yes"):
+        elif confirm(f"Create the GitHub repo '{config.project_slug}' now?"):
             visibility = "private" if config.mode == "quick" else ask_choice(
                 "Repository visibility:", ["private", "public"], default="private"
             )
@@ -1043,7 +1110,7 @@ def setup_git_repo(config: ProjectConfig, target: Path) -> bool:
     # Initial commit — Render needs the skeleton + render.yaml on the remote
     ok, dirty = run_cmd(["git", "status", "--porcelain"], target)
     if ok and dirty:
-        if ask("Commit the factory setup? (y/n)", "y").lower() in ("n", "no"):
+        if not confirm("Commit the factory setup?"):
             print("    - skipped initial commit")
             return False
         run_cmd(["git", "add", "-A"], target)
@@ -1061,7 +1128,7 @@ def setup_git_repo(config: ProjectConfig, target: Path) -> bool:
     if "..." in head and "ahead" not in head:
         print("    . remote is up to date")
         return True
-    if ask("Push to GitHub now? (y/n)", "y").lower() in ("n", "no"):
+    if not confirm("Push to GitHub now?"):
         print("    - skipped push (run 'git push -u origin main' before provisioning)")
         return False
     ok, out = run_cmd(["git", "push", "-u", "origin", "HEAD"], target)
@@ -1081,6 +1148,9 @@ def provision_render(config: ProjectConfig, target: Path, pushed: bool):
     if not script.exists():
         print("    - provisioner not installed")
         return
+    if has_flag("--no-provision"):
+        print("    - skipped (--no-provision). Later: python3 .claude/scripts/provision.py")
+        return
     if not pushed:
         print("    - skipped: the repo is not on GitHub yet. When it is, run:")
         print("      python3 .claude/scripts/provision.py")
@@ -1092,7 +1162,7 @@ def provision_render(config: ProjectConfig, target: Path, pushed: bool):
         return
     print("    Creating the database and web services on Render from render.yaml.")
     print("    Paid plans (starter services, basic-256mb database ≈ $20/month) start billing immediately.")
-    if ask("    Create them now? (y/n)", "y").lower() in ("n", "no"):
+    if not confirm("  Create them now?"):
         print("    - skipped. Later: python3 .claude/scripts/provision.py")
         return
     print()
@@ -1366,17 +1436,21 @@ def main():
         sys.exit(1)
 
     # Determine target directory
-    reconfigure = "--reconfigure" in sys.argv
-    preflight_only = "--preflight" in sys.argv
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    args = parse_flags(sys.argv[1:])
+    reconfigure = has_flag("--reconfigure")
+    preflight_only = has_flag("--preflight")
 
     if args:
-        target = Path(args[0]).resolve()
+        target = Path(args[0]).expanduser().resolve()
     else:
         target = Path.cwd()
 
-    if "--set-render-key" in sys.argv:
+    if has_flag("--set-render-key"):
         sys.exit(set_render_key_interactive())
+
+    if has_flag("--check"):          # machine check only (used by the /start skill)
+        machine_preflight()
+        sys.exit(0)
 
     if preflight_only:
         script = target / ".claude" / "scripts" / "preflight.py"
@@ -1388,16 +1462,16 @@ def main():
     machine_preflight()
 
     # Mode: Quick Start (defaults, plain-language runner) or Custom (developer chooses the stack)
-    if "--quick" in sys.argv:
+    if has_flag("--quick"):
         mode = "quick"
-    elif "--custom" in sys.argv:
+    elif has_flag("--custom"):
         mode = "custom"
     else:
-        mode = "custom" if input("  Choose your own tech stack (developers)? [y/N]: ").strip().lower() in ("y", "yes") else "quick"
+        mode = "custom" if confirm("Choose your own tech stack (developers)?", default_yes=False) else "quick"
 
     if not target.exists():
         print(f"\n  Target directory does not exist: {target}")
-        if input("  Create it? [Y/n]: ").strip().lower() in ("n", "no"):
+        if not confirm("Create it?"):
             print("  Aborted.")
             sys.exit(0)
         target.mkdir(parents=True)
@@ -1420,8 +1494,7 @@ def main():
         for key, value in asdict(config).items():
             print(f"    {key}: {value}")
 
-        confirm = input("\n  Re-apply this configuration? [Y/n]: ").strip().lower()
-        if confirm in ("n", "no"):
+        if not confirm("\n  Re-apply this configuration?"):
             config = interview_quick() if mode == "quick" else interview()
         # else use saved config
     else:
@@ -1470,8 +1543,7 @@ def main():
     print(f"    Skills: {', '.join(skills)}")
     print()
 
-    confirm = input("  Proceed with setup? [Y/n]: ").strip().lower()
-    if confirm in ("n", "no"):
+    if not confirm("Proceed with setup?"):
         print("  Aborted.")
         sys.exit(0)
 

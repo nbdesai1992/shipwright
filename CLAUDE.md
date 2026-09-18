@@ -9,8 +9,10 @@ This repository contains the generic orchestration system — skills, agents, an
 ## The Contract (do not break this)
 
 1. **Clone this repo.**
-2. **Run the wizard** (`bootstrap.sh` → `onboard.py`).
+2. **Open Claude Code in it and type `/start`** (`.claude/skills/start/` drives `onboard.py` non-interactively; developers may run `onboard.py` directly).
 3. **A new project repo exists**: one monorepo (`backend/` + `frontend/`), pushed to GitHub, with its Render database and web services live, and Claude Code configured inside it.
+
+Claude Code is the only thing a user must have installed. Every other tool is installed by `/start`, and the Render CLI is optional everywhere (the API key is the credential; every operation has an API path).
 
 Every change to the factory is measured against those three steps. Nothing may become a per-project manual prerequisite between them — no Dashboard clicking, no file editing, no "first go create X". The only manual setup allowed is account-level and one-time (Render payment method, Render↔GitHub connection, Render API key, optional Clerk app), and it is documented in GETTING-STARTED.md. If a new feature needs something from the human, it is asked for in the wizard or reported by `preflight.py` with a fix line; if a script can do it, a script does it (`provision.py` creates Render resources — the Blueprint Instance is optional).
 
@@ -20,8 +22,8 @@ Two wizard modes share one code path: **Quick Start** (default; four questions, 
 
 ```
 software-factory/
-├── bootstrap.sh            # macOS: install tools, log in, launch onboard.py
-├── onboard.py              # Interactive setup wizard (Quick Start | Custom) — entry point
+├── .claude/skills/start/   # /start — guided entry point for non-developers (drives onboard.py)
+├── onboard.py              # Setup wizard (Quick Start | Custom; interactive or --yes + flags)
 ├── GETTING-STARTED.md      # Non-developer walkthrough (the contract, step by step)
 ├── SETUP.md                # Developer setup guide
 ├── factory/

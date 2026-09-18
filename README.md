@@ -5,10 +5,10 @@
 ## The Contract
 
 1. **Clone this repo.**
-2. **Run the wizard** (`bootstrap.sh` installs the tools first, or run `onboard.py` directly).
+2. **Open Claude Code in it and type `/start`.** Claude checks the machine, installs what's missing, walks through GitHub and Render account setup one step at a time, asks four questions, and runs the wizard. (Developers can run `onboard.py` directly instead.)
 3. **A new project repo is created** — one monorepo with `backend/` + `frontend/`, pushed to GitHub, with its database and web services live on Render, and Claude Code configured inside it to build what you describe.
 
-Nothing else is a prerequisite. No Dashboard clicking per project: the wizard provisions Render from `render.yaml` through the API. The only one-time account setup is a Render payment method, connecting GitHub to Render, and a Render API key — see [GETTING-STARTED.md](GETTING-STARTED.md) for the non-developer walkthrough.
+Nothing else is a prerequisite: Claude Code is the only thing that must already be installed. No Dashboard clicking per project — the wizard provisions Render from `render.yaml` through the API. The one-time account setup (Render payment method, Render↔GitHub connection, Render API key) is walked through by `/start` and written down in [GETTING-STARTED.md](GETTING-STARTED.md).
 
 Then, inside the new project:
 
@@ -104,13 +104,17 @@ python3 ~/software-factory/onboard.py --set-render-key     # → ~/.claude/setti
 
 That is the only Render credential the factory uses — CLI, API calls, hooks, every project. `render login` is never required (its browser token expires; it remains a fallback).
 
-### Step 1–3: bootstrap → wizard → new repo
+### Step 1–3: clone → `/start` (or the wizard directly) → new repo
 
 ```bash
-~/software-factory/bootstrap.sh ~/code/my-new-app     # installs render, gh, node, dev-browser; logs in; runs the wizard
-# or, tools already present:
+cd ~/software-factory && claude        # then type /start — Claude drives everything below
+# or, developers, run the wizard yourself:
 python3 ~/software-factory/onboard.py ~/code/my-new-app [--quick|--custom]
+# or fully non-interactive:
+python3 ~/software-factory/onboard.py ~/code/my-new-app --quick --yes --name "My App" --description "..." --domain "..." --login no
 ```
+
+Tools the wizard needs: `gh` (repo creation + git auth), `node` + `dev-browser` (local screen previews). `/start` installs them; the Render CLI is optional.
 
 The directory doesn't need to exist. The wizard asks its questions (four in Quick Start; stack, auth, env group and push policy in Custom), pins the project to the Render workspace your CLI is logged in to, installs everything — 9 skills, 3 worker agents, CLAUDE.md, render.yaml, settings.json, hooks, scripts, skeleton `backend/` + `frontend/` apps — then creates the GitHub repo, commits, pushes, and **runs `provision.py`**, which creates the database and both web services on Render from `render.yaml`. When it returns you have a monorepo on GitHub with two `onrender.com` URLs serving the skeleton. Point it at an existing clone instead and it leaves your repo and remote untouched.
 

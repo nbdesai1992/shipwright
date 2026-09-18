@@ -12,11 +12,11 @@ Once per machine:
 |------|---------|-----|
 | [Claude Code](https://claude.ai/claude-code) | per its docs | runs the factory |
 | Python 3.8+ and git 2.28+ | usually present | onboarding script; `git init -b main` |
-| [Render CLI](https://docs.render.com/cli) | `brew install render` (no `render login` needed — see API key below) | infra worker reads logs, restarts, lists services |
+| [Render CLI](https://docs.render.com/cli) | optional (`brew install render`) | convenience only — every operation has an API equivalent and the factory uses the API |
 | [GitHub CLI](https://cli.github.com) | `brew install gh` then `gh auth login` | onboarding creates + pushes the repo (optional, but the smooth path) |
 | [dev-browser](https://github.com/sawyerhood/dev-browser) | `npm install -g dev-browser` (then `dev-browser install` if it cannot find Chrome) | frontend worker screenshots the UI |
 
-Or run `bootstrap.sh <project-dir>` from the factory clone: it installs all of the above, logs you in, and launches the wizard.
+Or open Claude Code in the factory clone and type `/start`: it checks for all of the above, installs what's missing, walks through the account steps, and drives the wizard non-interactively.
 
 Accounts, one-time:
 - **GitHub.**
@@ -32,7 +32,7 @@ The factory authenticates to Render with a long-lived **API key**, never with th
    ```bash
    python3 ~/software-factory/onboard.py --set-render-key
    ```
-   It goes into the `env` block of `~/.claude/settings.json`. Claude Code injects that block into every session; the Render CLI honors `RENDER_API_KEY`; the factory's resolver reads it. `bootstrap.sh` asks for it if it is missing.
+   It goes into the `env` block of `~/.claude/settings.json`. Claude Code injects that block into every session; the Render CLI honors `RENDER_API_KEY`; the factory's resolver reads it. `/start` asks for it if it is missing.
 3. Per-project override, if you ever need one: `.claude/settings.local.json` `{"env": {"RENDER_API_KEY": "rnd_..."}}` (gitignored). The wizard copies the machine key there so each project is self-contained.
 
 Every Render call in the factory resolves the key through `.claude/scripts/render-api-key.sh` (environment → project settings.local.json → project `.env` → `~/.claude/settings.json` → login token), so the CLI, direct API calls, the provisioner, and the workspace guard all use the same credential. The workspace pin comes from the key's visible workspaces (or the CLI login if one exists); with several workspaces the wizard asks which one.
