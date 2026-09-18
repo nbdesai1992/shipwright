@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Software Factory</title>
+<meta name="description" content="Describe an app in plain words. An open-source Claude Code toolkit turns it into a spec, a brief, working code, and live services on Render.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#EDF0F3; --paper:#FFFFFF; --ink:#16233A; --ink-2:#4A5568; --ink-3:#7B8794;
+  --line:#CBD3DC; --rail:#B7C1CC;
+  --accent:#E8590C; --accent-ink:#FFFFFF; --accent-soft:#FDE9DC;
+  --live:#1F8A8A; --live-soft:#DDF2F0;
+  --card:#FFF9E8; --card-line:#E9D9A8; --pin:#C0392B;
+  --code-bg:#16233A; --code-ink:#E6EDF3; --code-dim:#8AA0B8;
+  --shadow:0 1px 2px rgba(22,35,58,.08),0 8px 24px -12px rgba(22,35,58,.25);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#111826; --paper:#1A2333; --ink:#EEF2F6; --ink-2:#B7C2CE; --ink-3:#8593A3;
+    --line:#2B3648; --rail:#3A4759;
+    --accent:#FF7A2E; --accent-ink:#1A1208; --accent-soft:#3A2415;
+    --live:#3FBDB8; --live-soft:#173837;
+    --card:#2A2A22; --card-line:#4A4530; --pin:#E0554A;
+    --code-bg:#0C121C; --code-ink:#E6EDF3; --code-dim:#7F93AA;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#111826; --paper:#1A2333; --ink:#EEF2F6; --ink-2:#B7C2CE; --ink-3:#8593A3;
+  --line:#2B3648; --rail:#3A4759;
+  --accent:#FF7A2E; --accent-ink:#1A1208; --accent-soft:#3A2415;
+  --live:#3FBDB8; --live-soft:#173837;
+  --card:#2A2A22; --card-line:#4A4530; --pin:#E0554A;
+  --code-bg:#0C121C; --code-ink:#E6EDF3; --code-dim:#7F93AA;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -12px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--ground);color:var(--ink);font-family:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:17px;line-height:1.55;padding-inline:clamp(16px,4vw,48px);padding-block:0 64px}
+h1,h2,h3{font-family:"Bricolage Grotesque","IBM Plex Sans",system-ui,sans-serif;text-wrap:balance;margin:0;line-height:1.05;letter-spacing:-.01em}
+h1{font-size:clamp(40px,7vw,84px);font-weight:800}
+h2{font-size:clamp(28px,3.6vw,44px);font-weight:700}
+h3{font-size:20px;font-weight:700;line-height:1.25}
+p{margin:0;max-width:62ch}
+a{color:inherit}
+code,pre,.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.wrap{max-width:1180px;margin-inline:auto}
+header.top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding-block:22px 8px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:18px;letter-spacing:-.01em}
+.brand .mark{width:26px;height:26px;border:3px solid var(--ink);border-radius:6px;position:relative}
+.brand .mark::after{content:"";position:absolute;inset:5px 5px 5px 11px;background:var(--accent);border-radius:2px}
+nav{display:flex;gap:22px;font-size:15px;color:var(--ink-2)}
+nav a{text-decoration:none}
+nav a:hover,nav a:focus-visible{color:var(--ink);text-decoration:underline;text-underline-offset:4px}
+.oss{font-size:12px;letter-spacing:.12em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:5px 11px;color:var(--ink-2);font-weight:600;background:var(--paper)}
+
+/* Hero */
+.hero{display:grid;grid-template-columns:minmax(0,1fr);gap:36px;padding-block:44px 24px;align-items:start}
+@media (min-width:900px){.hero{grid-template-columns:5fr 7fr;gap:48px;padding-block:64px 32px}}
+.hero .lede{font-size:clamp(18px,1.6vw,21px);color:var(--ink-2);margin-top:22px}
+.cmds{margin-top:28px;background:var(--code-bg);color:var(--code-ink);border-radius:10px;padding:18px 20px;font-size:14.5px;line-height:1.7;box-shadow:var(--shadow);overflow-x:auto}
+.cmds .c{color:var(--code-dim)}
+.cmds .p{color:var(--accent)}
+.hero-cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-weight:600;font-size:15px;padding:12px 18px;border-radius:8px;border:1.5px solid var(--ink);color:var(--ink);background:transparent}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn:focus-visible{outline:3px solid var(--live);outline-offset:2px}
+
+/* Pipeline */
+.line{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:22px 22px 18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.line-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.status{font-size:13.5px;color:var(--ink-2);min-height:1.6em;display:flex;align-items:center;gap:8px}
+.status .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex:none;animation:blink 1.2s ease-in-out infinite}
+.stations{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:26px;padding-top:56px}
+.rail{position:absolute;left:12.5%;right:12.5%;top:24px;height:3px;background:var(--rail);border-radius:2px}
+.rail::after{content:"";position:absolute;inset:0;background:var(--accent);transform-origin:left;transform:scaleX(0);animation:fill 14s linear infinite;border-radius:2px}
+.st{text-align:center;padding:0 4px}
+.st .node{width:14px;height:14px;border-radius:50%;background:var(--paper);border:3px solid var(--rail);margin:-52px auto 30px;position:relative;z-index:1;transition:border-color .3s,background .3s,transform .3s}
+.st.on .node{border-color:var(--accent);background:var(--accent);transform:scale(1.25)}
+.st.done .node{border-color:var(--accent);background:var(--paper)}
+.st.live-on .node{border-color:var(--live);background:var(--live)}
+.st h3{font-size:15px;letter-spacing:.01em}
+.st .sub{font-size:13px;color:var(--ink-3);margin-top:4px;line-height:1.35}
+.st .ico{height:64px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.st svg{width:64px;height:56px;overflow:visible}
+.st .ico .bubble{fill:var(--paper);stroke:var(--ink-2);stroke-width:2}
+.st .ico .txt{fill:var(--ink-3)}
+.st .ico .tile{fill:var(--paper);stroke:var(--line);stroke-width:2;transition:fill .3s,stroke .3s}
+.st.on .ico .tile,.st.done .ico .tile{stroke:var(--accent)}
+.st.on .ico .tile{fill:var(--accent-soft)}
+.st .ico .svc{fill:var(--paper);stroke:var(--line);stroke-width:2;transition:fill .3s,stroke .3s}
+.st.live-on .ico .svc{fill:var(--live-soft);stroke:var(--live)}
+.st .ico .led{fill:var(--line);transition:fill .3s}
+.st.live-on .ico .led{fill:var(--live)}
+/* the traveling brief card */
+.brief{position:absolute;top:-2px;left:12.5%;width:64px;height:44px;background:var(--card);border:1.5px solid var(--card-line);border-radius:4px;box-shadow:var(--shadow);transform:translate(-50%,0);animation:travel 14s cubic-bezier(.65,.05,.35,.95) infinite;z-index:2}
+.brief::before{content:"";position:absolute;top:-6px;left:50%;width:9px;height:9px;border-radius:50%;background:var(--pin);transform:translateX(-50%);box-shadow:0 1px 2px rgba(0,0,0,.35)}
+.brief i{display:block;height:3px;background:var(--card-line);border-radius:2px;margin:12px 8px 0}
+.brief i+i{margin-top:5px;width:60%}
+.brief i+i+i{width:80%}
+.brief .stamp{position:absolute;right:4px;bottom:3px;font:600 8px/1 "IBM Plex Mono",monospace;letter-spacing:.06em;color:var(--live);opacity:0;animation:stamp 14s linear infinite}
+@keyframes travel{0%,8%{left:12.5%}22%,30%{left:37.5%}48%,62%{left:62.5%}80%,100%{left:87.5%}}
+@keyframes fill{0%,8%{transform:scaleX(0)}22%,30%{transform:scaleX(.334)}48%,62%{transform:scaleX(.667)}80%,100%{transform:scaleX(1)}}
+@keyframes stamp{0%,79%{opacity:0}82%,100%{opacity:1}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.lanes{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:22px;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.lanes span{border-top:1px dashed var(--line);padding-top:8px;text-align:center}
+@media (max-width:560px){.st .sub{display:none}.st h3{font-size:13px}.lanes{display:none}}
+@media (prefers-reduced-motion:reduce){
+  .brief,.rail::after,.status .dot,.brief .stamp{animation:none}
+  .brief{left:87.5%}.rail::after{transform:scaleX(1)}.brief .stamp{opacity:1}
+}
+
+/* Sections */
+section{padding-block:56px 8px}
+.sec-head{display:grid;gap:12px;max-width:760px;margin-bottom:28px}
+.sec-head p{color:var(--ink-2);font-size:18px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+.step{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:22px 22px 20px;display:grid;gap:10px;align-content:start}
+.step .k{font:600 12px/1 "IBM Plex Mono",monospace;letter-spacing:.08em;color:var(--accent)}
+.step p{color:var(--ink-2);font-size:15.5px}
+.step code{font-size:13px;background:var(--ground);padding:2px 6px;border-radius:4px}
+.split{display:grid;grid-template-columns:minmax(0,1fr);gap:28px;align-items:start}
+@media (min-width:900px){.split{grid-template-columns:1fr 1fr}}
+.tree{background:var(--code-bg);color:var(--code-ink);border-radius:12px;padding:20px 22px;font-size:13.5px;line-height:1.65;overflow-x:auto;box-shadow:var(--shadow)}
+.tree .d{color:var(--code-dim)}
+.tree .hl{color:var(--accent)}
+ul.plain{list-style:none;padding:0;margin:0;display:grid;gap:14px}
+ul.plain li{display:grid;grid-template-columns:22px 1fr;gap:12px;color:var(--ink-2);font-size:16px}
+ul.plain li::before{content:"";width:14px;height:14px;margin-top:5px;border:2.5px solid var(--live);border-radius:3px;background:var(--live-soft)}
+ul.plain b{color:var(--ink);font-weight:600}
+
+.providers{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px}
+.prov{border:1px solid var(--line);border-radius:12px;padding:20px;display:grid;gap:8px;background:var(--paper)}
+.prov.now{border-color:var(--live);box-shadow:inset 0 0 0 1px var(--live)}
+.prov .tag{justify-self:start;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:4px 9px;border-radius:999px;background:var(--ground);color:var(--ink-3)}
+.prov.now .tag{background:var(--live-soft);color:var(--live)}
+.prov h3{font-size:19px}
+.prov p{color:var(--ink-2);font-size:15px}
+
+.price{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+@media (min-width:760px){.price{grid-template-columns:1fr 1fr}}
+.tile{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:24px;display:grid;gap:8px;align-content:start}
+.tile.oss-tile{background:var(--ink);color:var(--ground);border-color:var(--ink)}
+.tile.oss-tile p{color:inherit;opacity:.85}
+.tile .big{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:clamp(36px,4vw,52px);line-height:1;letter-spacing:-.02em}
+.tile .big small{font-size:.38em;font-weight:600;letter-spacing:0;opacity:.8;margin-left:6px}
+.tile p{color:var(--ink-2);font-size:15.5px}
+.tile ul{margin:6px 0 0;padding-left:18px;color:var(--ink-2);font-size:15px;line-height:1.6}
+.fine{font-size:13.5px;color:var(--ink-3);margin-top:14px}
+
+.start{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:28px;display:grid;gap:18px;box-shadow:var(--shadow)}
+.start ol{margin:0;padding-left:22px;display:grid;gap:12px;color:var(--ink-2);font-size:16.5px}
+.start ol b{color:var(--ink)}
+.start pre{margin:0;background:var(--code-bg);color:var(--code-ink);border-radius:8px;padding:14px 16px;font-size:14px;overflow-x:auto}
+.start pre .p{color:var(--accent)}
+footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:14px;color:var(--ink-3)}
+footer a{color:var(--ink-2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="brand"><span class="mark" aria-hidden="true"></span>Software Factory</div>
+  <nav aria-label="Sections">
+    <a href="#how">How it works</a><a href="#get">What you get</a><a href="#where">Where it runs</a><a href="#cost">Cost</a><a href="#start">Start</a>
+  </nav>
+  <span class="oss">Open source</span>
+</header>
+
+<section class="hero" aria-labelledby="h1">
+  <div>
+    <p class="eyebrow">A Claude Code toolkit</p>
+    <h1 id="h1" style="margin-top:14px">Describe it.<br>It ships.</h1>
+    <p class="lede">Tell it what you want in plain words. It writes the spec, breaks it into work, builds and tests each piece with specialized workers, and puts the result live on Render. You answer a question now and then.</p>
+    <div class="cmds mono" aria-label="Two commands">
+      <div><span class="p">/spec create</span> "an invoice tracker for freelancers"</div>
+      <div><span class="c"># interview → brief 001 lands on the board</span></div>
+      <div><span class="p">/goal</span> Brief 001 is in a terminal folder…</div>
+      <div><span class="c"># runs until it's done or needs you</span></div>
+    </div>
+    <div class="hero-cta">
+      <a class="btn primary" href="#start">Get started</a>
+      <a class="btn" href="https://github.com/nbdesai1992/software-factory">View on GitHub</a>
+    </div>
+  </div>
+
+  <div class="line" aria-label="Animated overview: a brief travels from describe to live">
+    <div class="line-head">
+      <span class="eyebrow">One brief, start to finish</span>
+      <span class="status mono" id="status"><span class="dot" aria-hidden="true"></span><span id="status-text">/spec create "…"</span></span>
+    </div>
+    <div class="stations" id="stations">
+      <div class="rail" aria-hidden="true"></div>
+      <div class="brief" aria-hidden="true"><i></i><i></i><i></i><span class="stamp">DONE</span></div>
+
+      <div class="st on" data-i="0">
+        <div class="node"></div>
+        <div class="ico"><svg viewBox="0 0 64 56" aria-hidden="true"><path class="bubble" d="M8 8h48a4 4 0 0 1 4 4v22a4 4 0 0 1-4 4H26l-10 10v-10H8a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4z"/><rect class="txt" x="14" y="17" width="34" height="3" rx="1.5"/><rect class="txt" x="14" y="25" width="22" height="3" rx="1.5"/></svg></div>
+        <h3>Describe</h3><div class="sub">Plain words. A short interview.</div>
+      </div>
+      <div class="st" data-i="1">
+        <div class="node"></div>
+        <div class="ico"><svg viewBox="0 0 64 56" aria-hidden="true"><rect class="tile" x="6" y="4" width="16" height="48" rx="3"/><rect class="tile" x="24" y="4" width="16" height="48" rx="3"/><rect class="tile" x="42" y="4" width="16" height="48" rx="3"/></svg></div>
+        <h3>Brief</h3><div class="sub">Requirements, acceptance, a board card.</div>
+      </div>
+      <div class="st" data-i="2">
+        <div class="node"></div>
+        <div class="ico"><svg viewBox="0 0 64 56" aria-hidden="true"><rect class="tile" x="4" y="8" width="17" height="40" rx="3"/><rect class="tile" x="23.5" y="8" width="17" height="40" rx="3"/><rect class="tile" x="43" y="8" width="17" height="40" rx="3"/><rect class="txt" x="8" y="16" width="9" height="2.5" rx="1"/><rect class="txt" x="8" y="22" width="9" height="2.5" rx="1"/><rect class="txt" x="27.5" y="16" width="9" height="2.5" rx="1"/><rect class="txt" x="27.5" y="22" width="9" height="2.5" rx="1"/><rect class="txt" x="47" y="16" width="9" height="2.5" rx="1"/><rect class="txt" x="47" y="22" width="9" height="2.5" rx="1"/></svg></div>
+        <h3>Build</h3><div class="sub">Backend, frontend, infra workers. Tests against a real database.</div>
+      </div>
+      <div class="st" data-i="3">
+        <div class="node"></div>
+        <div class="ico"><svg viewBox="0 0 64 56" aria-hidden="true"><rect class="svc" x="6" y="6" width="52" height="18" rx="4"/><rect class="svc" x="6" y="32" width="52" height="18" rx="4"/><circle class="led" cx="16" cy="15" r="4"/><circle class="led" cx="16" cy="41" r="4"/><rect class="txt" x="26" y="13.5" width="24" height="3" rx="1.5"/><rect class="txt" x="26" y="39.5" width="24" height="3" rx="1.5"/></svg></div>
+        <h3>Live</h3><div class="sub">Deployed on Render. Health checked.</div>
+      </div>
+    </div>
+    <div class="lanes" aria-hidden="true"><span>1-backlog</span><span>2-active</span><span>2-active</span><span>4-done</span></div>
+  </div>
+</section>
+
+<section id="how" aria-labelledby="how-h">
+  <div class="sec-head">
+    <p class="eyebrow">How it works</p>
+    <h2 id="how-h">A brief is a card. The folder it sits in is its status.</h2>
+    <p>Every project gets a committed board with four folders. A runner moves one card at a time through it, delegating the work to worker agents and writing what happened onto the card itself. Close the window, reopen, and it picks up where the card says.</p>
+  </div>
+  <div class="steps">
+    <div class="step"><span class="k">/spec create</span><h3>Interview → brief</h3><p>You describe the product. It asks a few questions about who it's for and what done means, then writes a brief with numbered requirements and testable acceptance criteria into <code>briefs/1-backlog/</code>.</p></div>
+    <div class="step"><span class="k">/goal</span><h3>Runner takes the card</h3><p>Moves it to <code>2-active/</code>, breaks it into subtasks in dependency order, infrastructure first. An independent checker model decides when the goal is met, so the loop can't wander forever.</p></div>
+    <div class="step"><span class="k">workers</span><h3>Build with proof</h3><p>Backend worker writes code and tests against the real Postgres. Frontend worker designs for the product's world and verifies by screenshot. Infra worker deploys and confirms the live commit.</p></div>
+    <div class="step"><span class="k">4-done / 3-blocked</span><h3>Done means verified</h3><p>A requirement is checked only with evidence in hand. If it truly needs you, the card parks in <code>3-blocked/</code> with the question and options. Blocked is never reported as done.</p></div>
+  </div>
+</section>
+
+<section id="get" aria-labelledby="get-h">
+  <div class="sec-head">
+    <p class="eyebrow">What you get</p>
+    <h2 id="get-h">One repo, provisioned, ready to build in.</h2>
+  </div>
+  <div class="split">
+    <ul class="plain">
+      <li><span></span><span><b>A monorepo on GitHub</b> — <code>backend/</code> and <code>frontend/</code> with health endpoints, pushed on creation.</span></li>
+      <li><span></span><span><b>Live services on Render</b> — database, API, and web app created from <code>render.yaml</code> through the API. No dashboard clicking.</span></li>
+      <li><span></span><span><b>Claude Code configured inside it</b> — nine skills, three worker agents, hooks that enforce the process rather than remind about it.</span></li>
+      <li><span></span><span><b>A readiness check and a teardown</b> — <code>/preflight</code> tells you exactly what's missing and how to fix it; one command deletes the services when you're done.</span></li>
+    </ul>
+    <pre class="tree mono" aria-label="Generated project layout"><span class="d">your-app/</span>
+├── backend/            <span class="d"># FastAPI · /health</span>
+├── frontend/           <span class="d"># Next.js · /api/health</span>
+├── render.yaml         <span class="d"># the one source of truth for infra</span>
+├── briefs/             <span class="d"># 1-backlog 2-active 3-blocked 4-done</span>
+└── .claude/
+    ├── skills/         <span class="hl"># spec · orchestrate · preflight · deploy …</span>
+    ├── agents/         <span class="d"># backend · frontend · infra workers</span>
+    ├── hooks/          <span class="d"># progress guard · trajectory · workspace pin</span>
+    └── scripts/        <span class="hl"># provision.py · preflight.py</span></pre>
+  </div>
+</section>
+
+<section id="where" aria-labelledby="where-h">
+  <div class="sec-head">
+    <p class="eyebrow">Where it runs</p>
+    <h2 id="where-h">Render today. More clouds on the way.</h2>
+    <p>The factory speaks to your cloud through one adapter. The first one is Render, because a database and two web services come up from a single file with nothing to click.</p>
+  </div>
+  <div class="providers">
+    <div class="prov now"><span class="tag">Available</span><h3>Render</h3><p>Postgres, API, and web service provisioned from <code>render.yaml</code>. Deploys on every push. Workspace-pinned so it can never touch the wrong account.</p></div>
+    <div class="prov"><span class="tag">Coming soon</span><h3>AWS</h3><p>Same brief, same workers, same board. An adapter for the services most small apps actually use.</p></div>
+    <div class="prov"><span class="tag">Coming soon</span><h3>Other cloud providers</h3><p>Adapters are a folder and a wizard choice. The rest of the factory doesn't change.</p></div>
+  </div>
+</section>
+
+<section id="cost" aria-labelledby="cost-h">
+  <div class="sec-head">
+    <p class="eyebrow">Cost</p>
+    <h2 id="cost-h">The factory is free. You pay your cloud for what you run.</h2>
+  </div>
+  <div class="price">
+    <div class="tile oss-tile">
+      <span class="eyebrow" style="color:inherit;opacity:.7">Software Factory</span>
+      <div class="big">$0<small>open source</small></div>
+      <p>Clone it, use it, change it. There is no account, no plan, and nothing to license. You bring Claude Code.</p>
+    </div>
+    <div class="tile">
+      <span class="eyebrow">Render, billed by Render</span>
+      <div class="big">≈ $20<small>/ month for a small project</small></div>
+      <p>Two starter web services and a small Postgres database. It scales with how much you run and how big it gets, and you can delete a project's services in one command.</p>
+      <ul><li>Starter web service, each: from about $7/mo</li><li>Postgres basic-256mb: about $6/mo</li><li>Bigger plans as your app grows</li></ul>
+    </div>
+  </div>
+  <p class="fine">Prices are Render's and can change; check render.com/pricing. Claude Code usage is separate and depends on your Claude plan.</p>
+</section>
+
+<section id="start" aria-labelledby="start-h">
+  <div class="sec-head">
+    <p class="eyebrow">Get started</p>
+    <h2 id="start-h">Three steps. Claude does the rest.</h2>
+  </div>
+  <div class="start">
+    <ol>
+      <li><b>Get the factory.</b> One line in Terminal.</li>
+      <li><b>Open Claude Code in it and type <code>/start</code>.</b> It checks your Mac, walks you through GitHub and Render one step at a time, and asks four questions.</li>
+      <li><b>Build.</b> A new repo exists with live services. Open it and <code>/spec create</code> what you want.</li>
+    </ol>
+    <pre class="mono">git clone https://github.com/nbdesai1992/software-factory.git ~/software-factory
+cd ~/software-factory && claude
+<span class="p">/start</span></pre>
+    <div class="hero-cta" style="margin-top:0">
+      <a class="btn primary" href="https://github.com/nbdesai1992/software-factory/blob/main/GETTING-STARTED.md">Read the getting-started guide</a>
+      <a class="btn" href="https://github.com/nbdesai1992/software-factory">GitHub</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>Software Factory · open source · a Claude Code orchestration toolkit</span>
+  <span><a href="https://github.com/nbdesai1992/software-factory">github.com/nbdesai1992/software-factory</a></span>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var sts = Array.prototype.slice.call(document.querySelectorAll('.st'));
+  var text = document.getElementById('status-text');
+  var dot = document.querySelector('.status .dot');
+  // Keyframe timings (fractions of the 14s loop) — match the CSS `travel` animation.
+  var steps = [
+    {at:0.00, i:0, msg:'/spec create "invoice tracker for freelancers"'},
+    {at:0.08, i:0, msg:'interview: who is it for? what does done mean?'},
+    {at:0.22, i:1, msg:'brief 001-invoice-tracker → briefs/1-backlog/  (7 requirements)'},
+    {at:0.30, i:1, msg:'/goal … → 2-active/  decomposing phase 1'},
+    {at:0.48, i:2, msg:'infra-worker: provision.py — db available, 2 services live'},
+    {at:0.53, i:2, msg:'backend-worker: 14/14 tests passing against Render Postgres'},
+    {at:0.58, i:2, msg:'frontend-worker: screenshot verified · design gates passed'},
+    {at:0.62, i:2, msg:'git push → render deploy live @ a3f9c1e'},
+    {at:0.80, i:3, msg:'GET /health 200 · GET /api/health 200'},
+    {at:0.86, i:3, msg:'✅ BRIEF COMPLETE: 001-invoice-tracker → briefs/4-done/'}
+  ];
+  function paint(k){
+    sts.forEach(function(s,idx){
+      s.classList.remove('on','done','live-on');
+      if(idx<k.i) s.classList.add('done');
+      if(idx===k.i) s.classList.add(k.i===3?'live-on':'on');
+    });
+    text.textContent = k.msg;
+    if(dot) dot.style.background = k.i===3 ? 'var(--live)' : 'var(--accent)';
+  }
+  if(reduce){ paint(steps[steps.length-1]); sts.forEach(function(s){s.classList.add('done')}); return; }
+  var T = 14000, start = performance.now();
+  function tick(now){
+    var f = ((now-start)%T)/T, cur = steps[0];
+    for(var j=0;j<steps.length;j++){ if(f>=steps[j].at) cur=steps[j]; }
+    paint(cur);
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
