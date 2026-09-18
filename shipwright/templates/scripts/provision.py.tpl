@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 provision.py — apply render.yaml to Render through the API (installed by
-software-factory onboarding into .claude/scripts/; rendered for {{PROJECT_NAME}}).
+shipwright onboarding into .claude/scripts/; rendered for {{PROJECT_NAME}}).
 
-This is the factory's own blueprint applier. Render's "Blueprint Instance"
+This is Shipwright's own blueprint applier. Render's "Blueprint Instance"
 does the same job but can only be created by clicking in the Dashboard;
 this script does it from the terminal so that clone → wizard → live services
 needs no Dashboard visit beyond account setup.
@@ -266,7 +266,7 @@ def ensure_databases(rnd, owner_id, dbs, allow_ip):
         }
         if allow_ip and allow_ip != "none":
             cidr = "0.0.0.0/0" if allow_ip == "all" else allow_ip
-            body["ipAllowList"] = [{"cidrBlock": cidr, "description": "software-factory: local backend tests"}]
+            body["ipAllowList"] = [{"cidrBlock": cidr, "description": "shipwright: local backend tests"}]
         say(f"[new ] database '{name}' — creating ({body['plan']}, {body['region']}, PG{body['version']}) — this starts billing")
         status, created = rnd.write("POST", "/postgres", body)
         if status not in (200, 201):
@@ -509,7 +509,7 @@ def main():
     ap.add_argument("--destroy", action="store_true", help="delete this project's declared services and databases")
     args = ap.parse_args()
 
-    say(f"== software-factory provision: {{PROJECT_NAME}} ==")
+    say(f"== shipwright provision: {{PROJECT_NAME}} ==")
     spec = render_yaml.load(ROOT)
     if spec is None:
         die("render.yaml not found at repo root")

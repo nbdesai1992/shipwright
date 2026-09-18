@@ -1,6 +1,6 @@
 """
 render_yaml.py — minimal reader for the project's render.yaml (installed by
-software-factory onboarding into .claude/scripts/; shared by preflight.py and
+shipwright onboarding into .claude/scripts/; shared by preflight.py and
 provision.py).
 
 Not a YAML parser. It understands the shape onboarding generates plus

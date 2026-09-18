@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Software Factory — Project Onboarding
+Shipwright — Project Onboarding
 
 Sets up the Claude Code orchestration system for a target project.
 Copies generic skills, renders customizable templates, and generates
@@ -56,7 +56,7 @@ class ProjectConfig:
     dev_server_command: str = "npm run dev"
     testing_policy: str = "local"
     mode: str = "quick"            # quick (defaults, plain-language runner) | custom (developer chooses)
-    push_policy: str = "human"     # human (review checkpoint) | factory (runner pushes)
+    push_policy: str = "human"     # human (review checkpoint) | shipwright (runner pushes)
 
     def to_replacements(self) -> dict:
         """Return a dict of {{PLACEHOLDER}} → value for template rendering."""
@@ -93,8 +93,8 @@ class ProjectConfig:
         }
 
     def _push_policy_line(self) -> str:
-        if self.push_policy == "factory":
-            return ("- **Push policy: factory.** After a deploy subtask commits, the runner runs `git push` itself, "
+        if self.push_policy in ("shipwright", "factory"):
+            return ("- **Push policy: shipwright.** After a deploy subtask commits, the runner runs `git push` itself, "
                     "records the SHA in the Progress Log, and then spawns the deploy-verification subtask. No human push checkpoint.")
         return ("- **Push policy: human.** Deploy subtasks commit and then raise an `external-action` blocker; "
                 "the human reviews and runs `git push`. Render auto-deploys on push.")
@@ -267,7 +267,7 @@ def store_user_setting_env(key: str, value: str):
     """Write one value into the env block of ~/.claude/settings.json.
 
     Claude Code injects that block into every session on this machine, and
-    the factory's resolver reads it, so a Render API key stored here serves
+    Shipwright's resolver reads it, so a Render API key stored here serves
     every project without `render login`.
     """
     data = {}
@@ -342,7 +342,7 @@ def machine_preflight():
     if shutil.which("render"):
         line(True, "render CLI (optional)")
     else:
-        print("    [opt] render CLI not installed — fine; the factory talks to Render through its API")
+        print("    [opt] render CLI not installed — fine; Shipwright talks to Render through its API")
     api_key, key_source = detect_render_api_key()
     if api_key:
         line(True, f"Render API key ({key_source})")
@@ -446,7 +446,7 @@ def ask_render_api_key(config: ProjectConfig):
         print(f"\n  Render API key: found on this machine ({source}) — using it for this project.")
         config.render_api_key_input = key
         return
-    print("\n  Render needs an API key so the factory can create and manage your services.")
+    print("\n  Render needs an API key so Shipwright can create and manage your services.")
     print("  Render Dashboard → your avatar → Account Settings → API Keys → Create API Key. Input is hidden.")
     key = ask_secret("  Render API key (rnd_...; blank = fall back to `render login`): ", key="render_api_key")
     config.render_api_key_input = key
@@ -491,11 +491,11 @@ def ask_clerk_keys(config: ProjectConfig):
 
 def interview_quick() -> ProjectConfig:
     """Quick Start: four plain questions; every technical choice takes the default."""
-    config = ProjectConfig(mode="quick", push_policy="factory", env_group_name="")
+    config = ProjectConfig(mode="quick", push_policy="shipwright", env_group_name="")
 
     print()
     print("=" * 60)
-    print("  SOFTWARE FACTORY — Quick Start")
+    print("  SHIPWRIGHT — Quick Start")
     print("=" * 60)
     print()
     print("  Four questions. Everything technical is chosen for you:")
@@ -536,7 +536,7 @@ def interview() -> ProjectConfig:
 
     print()
     print("=" * 60)
-    print("  SOFTWARE FACTORY — Project Onboarding (Custom)")
+    print("  SHIPWRIGHT — Project Onboarding (Custom)")
     print("=" * 60)
     print()
     print("  Answer a few questions to set up the orchestration system.")
@@ -597,7 +597,7 @@ def interview() -> ProjectConfig:
 
         # API key (machine-wide if present), then the workspace pin from the
         # CLI login or the key's visible owners. Never stored in
-        # factory-config.json; written to .claude/settings.local.json.
+        # shipwright.json; written to .claude/settings.local.json.
         ask_render_api_key(config)
         choose_render_workspace(config)
         if not config.render_workspace and not config.render_workspace_id:
@@ -608,8 +608,8 @@ def interview() -> ProjectConfig:
                 config.render_workspace_id = ask("Render workspace ID (tea-...; blank = name only)")
 
         config.push_policy = ask_choice(
-            "Who pushes to deploy? 'human' = you review and git push (checkpoint); 'factory' = the runner pushes",
-            ["human", "factory"],
+            "Who pushes to deploy? 'human' = you review and git push (checkpoint); 'shipwright' = the runner pushes",
+            ["human", "shipwright"],
             default="human",
         )
 
@@ -742,7 +742,7 @@ def generate_render_yaml(config: ProjectConfig, target: Path):
 
     lines = [
         f"# Render Blueprint — {config.project_name}",
-        f"# Generated by software-factory onboarding. Customize as needed.",
+        f"# Generated by shipwright onboarding. Customize as needed.",
         f"# Docs: https://docs.render.com/blueprint-spec",
         "",
     ]
@@ -1110,11 +1110,11 @@ def setup_git_repo(config: ProjectConfig, target: Path) -> bool:
     # Initial commit — Render needs the skeleton + render.yaml on the remote
     ok, dirty = run_cmd(["git", "status", "--porcelain"], target)
     if ok and dirty:
-        if not confirm("Commit the factory setup?"):
+        if not confirm("Commit Shipwright setup?"):
             print("    - skipped initial commit")
             return False
         run_cmd(["git", "add", "-A"], target)
-        ok, out = run_cmd(["git", "commit", "-m", "factory setup"], target)
+        ok, out = run_cmd(["git", "commit", "-m", "shipwright setup"], target)
         if not ok:
             print(f"    ! commit failed: {out.splitlines()[0] if out else 'unknown error'}")
             return False
@@ -1334,7 +1334,7 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
         additions = [l for l in lines_to_add if l not in existing]
         if additions:
             with open(gitignore_path, "a", encoding="utf-8") as f:
-                f.write("\n# Orchestration (added by software-factory)\n")
+                f.write("\n# Orchestration (added by shipwright)\n")
                 for line in additions:
                     f.write(f"{line}\n")
             print(f"    + .gitignore (updated)")
@@ -1342,7 +1342,7 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
             print(f"    . .gitignore (already configured)")
     else:
         gitignore_path.write_text(
-            "# Orchestration (added by software-factory)\n" + "".join(f"{l}\n" for l in lines_to_add),
+            "# Orchestration (added by shipwright)\n" + "".join(f"{l}\n" for l in lines_to_add),
             encoding="utf-8",
         )
         print(f"    + .gitignore (created)")
@@ -1360,9 +1360,9 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
         generate_frontend_skeleton(config, target)
 
     # ── 9. Save config for re-onboarding ──
-    config_path = claude_dir / "factory-config.json"
+    config_path = claude_dir / "shipwright.json"
     config_path.write_text(json.dumps(asdict(config), indent=2) + "\n", encoding="utf-8")
-    print(f"    + factory-config.json (for re-onboarding)")
+    print(f"    + shipwright.json (for re-onboarding)")
 
     # ── 10. Git repo + remote (.gitignore and all files exist by now) ──
     print("\n  Git:")
@@ -1391,7 +1391,7 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
     3. Open Claude Code:  claude
     4. Run:  /spec create "describe what you want to build"
     5. Approve the brief, then paste the /goal prompt it hands you.
-       The factory works until the brief is done or needs you.
+       Shipwright works until the brief is done or needs you.
     6. /status shows the board at any time.
     7. {blocked_hint}
 
@@ -1416,7 +1416,7 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
     - frontend-worker  {'Installed' if config.frontend_framework != 'none' else 'Skipped (no frontend)'}
     - infra-worker     {'Installed' if config.deploy_platform != 'none' else 'Skipped (no deploy platform)'}
 
-  See docs/HUMAN-INTERVENTION-GUIDE.md in the software-factory
+  See docs/HUMAN-INTERVENTION-GUIDE.md in the shipwright
   repo for when you'll need to step in during orchestration.
 """)
 
@@ -1428,11 +1428,11 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
 def main():
     # Determine factory directory (where this script lives)
     script_dir = Path(__file__).resolve().parent
-    factory_dir = script_dir / "factory"
+    shipwright_dir = script_dir / "shipwright"
 
-    if not factory_dir.exists():
-        print(f"Error: factory/ directory not found at {factory_dir}")
-        print("Make sure you're running this from the software-factory repo.")
+    if not shipwright_dir.exists():
+        print(f"Error: shipwright/ directory not found at {shipwright_dir}")
+        print("Make sure you're running this from the shipwright repo.")
         sys.exit(1)
 
     # Determine target directory
@@ -1483,7 +1483,9 @@ def main():
     print(f"\n  Target project: {target}")
 
     # Check for existing config (re-onboarding)
-    existing_config = target / ".claude" / "factory-config.json"
+    existing_config = target / ".claude" / "shipwright.json"
+    if not existing_config.exists() and (target / ".claude" / "factory-config.json").exists():
+        existing_config = target / ".claude" / "factory-config.json"   # projects onboarded before the rename
     if reconfigure and existing_config.exists():
         print(f"  Loading saved configuration from {existing_config.name}...")
         saved = json.loads(existing_config.read_text(encoding="utf-8"))
@@ -1547,7 +1549,7 @@ def main():
         print("  Aborted.")
         sys.exit(0)
 
-    setup_project(config, target, factory_dir)
+    setup_project(config, target, shipwright_dir)
 
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@ You are a read-only readiness check. You MUST NOT change any file, env var, or R
 python3 .claude/scripts/preflight.py
 ```
 
-The script prints one line per check: `[PASS]`, `[WARN]` (the factory can work around it or it only matters later), or `[FAIL]` (the run will block on it) with a `→ fix` line. Exit code 1 means at least one FAIL.
+The script prints one line per check: `[PASS]`, `[WARN]` (Shipwright can work around it or it only matters later), or `[FAIL]` (the run will block on it) with a `→ fix` line. Exit code 1 means at least one FAIL.
 
 ## Report
 

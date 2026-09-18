@@ -31,7 +31,7 @@ The factory needs one change: switch worker spawn from `--output-format json` to
 
 ### Change 1: worker-prompts.md — Spawn Command
 
-**Current** (`factory/skills/orchestrate/worker-prompts.md`):
+**Current** (`shipwright/skills/orchestrate/worker-prompts.md`):
 
 ```bash
 claude -p \
@@ -142,7 +142,7 @@ This ensures workers run as clean subprocess sessions. Document this in worker-p
 ## Where the Eval Code Lives
 
 ```
-software-factory/
+shipwright/
 ├── eval/
 │   ├── eval.yaml                    # Suite config
 │   ├── harness.py                   # Main runner

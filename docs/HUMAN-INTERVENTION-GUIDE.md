@@ -1,6 +1,6 @@
 # Human Intervention Guide
 
-When the software factory is running autonomously via `/goal` (or turn by turn via `/orchestrate`), there are specific moments where human intervention is required. This guide documents every known intervention point so you know what to expect.
+When the Shipwright is running autonomously via `/goal` (or turn by turn via `/orchestrate`), there are specific moments where human intervention is required. This guide documents every known intervention point so you know what to expect.
 
 ## How Intervention Works
 
@@ -22,7 +22,7 @@ You can check for blockers at any time with `/status blockers`.
 
 **What to do:** Either run `! render login` in the Claude Code prompt (the `!` prefix runs it interactively; opens a browser, stores a token that expires), or — the durable fix — create a long-lived API key (Render Dashboard → Account Settings → API Keys) and put it in the `env` block of `.claude/settings.local.json` as `RENDER_API_KEY`. Then write "credential set" on the blocker's `Resolution:` line and run `/orchestrate`.
 
-Every Render call in the factory goes through `.claude/scripts/render-api-key.sh`, which prefers the long-lived key and falls back to the login token; `--source` tells you which one is in use and whether the token has expired.
+Every Render call in Shipwright goes through `.claude/scripts/render-api-key.sh`, which prefers the long-lived key and falls back to the login token; `--source` tells you which one is in use and whether the token has expired.
 
 **Prevention:** Run `/preflight` before the first run. It reports the credential source, whether it has expired, and whether it can see the pinned workspace.
 
@@ -97,7 +97,7 @@ Every Render call in the factory goes through `.claude/scripts/render-api-key.sh
 
 ### 6. Push to Deploy (Code Review Checkpoint)
 
-**When:** After backend or frontend code is written, the infra-worker commits the code and the project's **push policy** (CLAUDE.md → Deployment) is `human`. Under `factory` (the Quick Start default) the runner pushes itself and this intervention never occurs.
+**When:** After backend or frontend code is written, the infra-worker commits the code and the project's **push policy** (CLAUDE.md → Deployment) is `human`. Under `shipwright` (the Quick Start default) the runner pushes itself and this intervention never occurs.
 
 **Symptom:** Blocker with type `external-action`, message like "Code committed. Please run `git push origin main` to deploy."
 
@@ -212,7 +212,7 @@ Run `/preflight` (or `python3 .claude/scripts/preflight.py`). It checks all of t
   - The skeleton apps deploy on the first build; both `/health` endpoints should return `{"status": "ok"}`
 - [ ] `sync: false` secrets (Clerk keys) have values — `provision.py --set KEY=VALUE`
 
-The runner also runs preflight the first time it pulls a brief from the backlog and parks any failure as a blocker with the same fix text. After this setup, deploys happen through your `git push` — Render auto-deploys on commit, and the infra-worker verifies each deploy went live. The factory never creates services and never pushes on its own.
+The runner also runs preflight the first time it pulls a brief from the backlog and parks any failure as a blocker with the same fix text. After this setup, deploys happen through your `git push` — Render auto-deploys on commit, and the infra-worker verifies each deploy went live. Shipwright never creates services and never pushes on its own.
 
 2. **Write detailed specs:**
    - The more specific your acceptance criteria, the fewer `unclear-requirement` blockers

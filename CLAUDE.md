@@ -1,4 +1,4 @@
-# Software Factory
+# Shipwright
 
 A Claude Code orchestration toolkit that turns a product spec into working software.
 
@@ -14,19 +14,19 @@ This repository contains the generic orchestration system — skills, agents, an
 
 Claude Code is the only thing a user must have installed. Every other tool is installed by `/start`, and the Render CLI is optional everywhere (the API key is the credential; every operation has an API path).
 
-Every change to the factory is measured against those three steps. Nothing may become a per-project manual prerequisite between them — no Dashboard clicking, no file editing, no "first go create X". The only manual setup allowed is account-level and one-time (Render payment method, Render↔GitHub connection, Render API key, optional Clerk app), and it is documented in GETTING-STARTED.md. If a new feature needs something from the human, it is asked for in the wizard or reported by `preflight.py` with a fix line; if a script can do it, a script does it (`provision.py` creates Render resources — the Blueprint Instance is optional).
+Every change to Shipwright is measured against those three steps. Nothing may become a per-project manual prerequisite between them — no Dashboard clicking, no file editing, no "first go create X". The only manual setup allowed is account-level and one-time (Render payment method, Render↔GitHub connection, Render API key, optional Clerk app), and it is documented in GETTING-STARTED.md. If a new feature needs something from the human, it is asked for in the wizard or reported by `preflight.py` with a fix line; if a script can do it, a script does it (`provision.py` creates Render resources — the Blueprint Instance is optional).
 
 Two wizard modes share one code path: **Quick Start** (default; four questions, all defaults, runner pushes, plain-language runner) and **Custom** (developer chooses). Both must keep the contract.
 
 ## Repository Structure
 
 ```
-software-factory/
+shipwright/
 ├── .claude/skills/start/   # /start — guided entry point for non-developers (drives onboard.py)
 ├── onboard.py              # Setup wizard (Quick Start | Custom; interactive or --yes + flags)
 ├── GETTING-STARTED.md      # Non-developer walkthrough (the contract, step by step)
 ├── SETUP.md                # Developer setup guide
-├── factory/
+├── shipwright/
 │   ├── skills/             # Generic skills (copied as-is to target projects)
 │   │   ├── orchestrate/    # Decompose specs → spawn workers → track progress
 │   │   ├── worker-protocol/# Shared worker conventions
@@ -54,7 +54,7 @@ software-factory/
 ## How to Use
 
 1. Clone this repo
-2. From your target project directory: `python /path/to/software-factory/onboard.py`
+2. From your target project directory: `python /path/to/shipwright/onboard.py`
 3. Answer the questions
 4. Open Claude Code in your project
 5. `/spec create "what you want to build"` — produces a goal brief + a `/goal` prompt
@@ -62,9 +62,9 @@ software-factory/
 
 ## Development Guidelines
 
-- Generic skills should contain NO project-specific content (stack-level references to Render, render.yaml, and Clerk are accepted in V1 — the factory is Render-only)
+- Generic skills should contain NO project-specific content (stack-level references to Render, render.yaml, and Clerk are accepted in V1 — Shipwright is Render-only)
 - Templates use `{{PLACEHOLDER}}` syntax (simple string replacement, no Jinja2)
-- Render is the only deploy platform. The onboarding wizard offers `render` or `none`; a new adapter needs `factory/templates/skills/deploy/{platform}/SKILL.md.tpl` AND a wizard choice in `onboard.py`
+- Render is the only deploy platform. The onboarding wizard offers `render` or `none`; a new adapter needs `shipwright/templates/skills/deploy/{platform}/SKILL.md.tpl` AND a wizard choice in `onboard.py`
 - Hooks installed into projects are listed explicitly in `HOOK_FILES` in `onboard.py` (must match `settings.json.tpl`) — never glob the templates folder
 - Third-party runtime dependency: `dev-browser` (frontend screenshots). Prerequisites are documented in SETUP.md; keep them in sync when adding a dependency
 - Render credentials: every CLI/API snippet resolves the key via `.claude/scripts/render-api-key.sh` (env → settings.local.json → .env → login token). Never hardcode `~/.render/cli.yaml` parsing in a skill again, and never write a key into a committed file

@@ -1,5 +1,5 @@
 #!/bin/bash
-# render-api-key.sh — resolve the Render API key (installed by software-factory
+# render-api-key.sh — resolve the Render API key (installed by shipwright
 # onboarding into .claude/scripts/). Prints the key on stdout, nothing else.
 #
 # Resolution order (first hit wins):

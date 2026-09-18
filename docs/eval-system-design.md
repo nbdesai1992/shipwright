@@ -1,10 +1,10 @@
-# Eval System Design: Software Factory
+# Eval System Design: Shipwright
 
 > **Status (2026-09-16): design document, predates the brief-board architecture.** Written when workers were spawned with `claude -p --agent` and state lived in `session/spec.md`, `session/phases/`, and `session/tasks/`. Since decisions #20–#24 the factory uses native subagents (Task tool), a committed `briefs/` Kanban board, and hook-written `session/{brief-id}/trajectory.jsonl`. The eval tasks, scoring rubrics, and best@k framing still apply; the spawn mechanics, file paths, and "Factory Changes Required" sections do not. Treat `trajectory.jsonl` (hook-written, deterministic) as the ground-truth trace the harness should read.
 
 ## The Core Thesis
 
-The software factory produces working software from specs. Today we can't answer: "How good is the software it produces?" or "Did it follow its own process?" We have trajectory logging and compliance self-audits, but no systematic way to measure, compare, or improve.
+The Shipwright produces working software from specs. Today we can't answer: "How good is the software it produces?" or "Did it follow its own process?" We have trajectory logging and compliance self-audits, but no systematic way to measure, compare, or improve.
 
 An eval system gives us three things:
 1. **Measurement** — Quantified quality across runs, tasks, and factory versions
@@ -521,7 +521,7 @@ The factory's blocker protocol expects a human in the loop. For evals, three opt
 python onboard.py --config tasks/01-todo-api/config.json --target /tmp/eval-run-001
 ```
 
-This reads all answers from `config.json` instead of prompting. The config already stores in `factory-config.json`, so this is a natural extension — just read the config upfront instead of collecting it interactively.
+This reads all answers from `config.json` instead of prompting. The config already stores in `shipwright.json`, so this is a natural extension — just read the config upfront instead of collecting it interactively.
 
 ---
 
@@ -652,7 +652,7 @@ This is already enormously valuable. Most teams building agent systems have no s
      rubric item "interface contract documents all endpoints"
        → skill: worker-protocol
        → section: Interface Contracts
-       → file: factory/skills/worker-protocol/SKILL.md
+       → file: shipwright/skills/worker-protocol/SKILL.md
 3. Generate improvement spec:
    "The worker-protocol skill's Interface Contract section is not being
     followed reliably. In 7/15 runs, workers did not document all API
@@ -668,14 +668,14 @@ The key insight: the rubric items themselves point to which skill to fix. If you
 
 ```
 1. Run eval suite → report → automated diagnosis → improvement spec
-2. Onboard software-factory into itself:
+2. Onboard shipwright into itself:
    - The "project" is the factory repo
    - The "backend" is the Python onboard.py
    - The "frontend" is... nothing (it's markdown files)
    - The "workers" would need to understand they're editing skill definitions
 3. /spec create "Improve worker-protocol interface contract compliance"
 4. /orchestrate
-5. Workers edit factory/skills/worker-protocol/SKILL.md
+5. Workers edit shipwright/skills/worker-protocol/SKILL.md
 6. Re-run evals on the modified factory
 7. If improved: commit
 ```

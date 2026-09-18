@@ -1,6 +1,6 @@
 ---
 name: start
-description: Create a new project with the software factory, end to end. Use when someone opens Claude Code in the software-factory repo and wants to start a new app — it checks their machine, walks them through GitHub and Render account setup one step at a time, asks four plain questions, runs the wizard, and leaves them with a new repo on GitHub whose services are live on Render.
+description: Create a new project with the Shipwright, end to end. Use when someone opens Claude Code in the shipwright repo and wants to start a new app — it checks their machine, walks them through GitHub and Render account setup one step at a time, asks four plain questions, runs the wizard, and leaves them with a new repo on GitHub whose services are live on Render.
 user-invocable: true
 disable-model-invocation: true
 allowed-tools: Bash, Read, Glob, Grep
@@ -42,7 +42,7 @@ Read the `[MISSING]` lines. Fix each in this order, one message per fix, waiting
   ```
   Then make it permanent: append `export PATH="$HOME/.local/node/bin:$PATH"` to `~/.zshrc` (create the file if missing) and use that PATH for every command you run afterwards. Node is only needed so Claude can preview the app's screens on their machine.
 - **dev-browser missing** → `PATH="$HOME/.local/node/bin:$PATH" npm install -g dev-browser`, then verify with `printf 'console.log(1)\n' | dev-browser --headless`. If it cannot find Chrome, run `dev-browser install`.
-- **render CLI** is marked optional. Never install it; the factory talks to Render directly.
+- **render CLI** is marked optional. Never install it; Shipwright talks to Render directly.
 
 ## Step 2 — GitHub
 
@@ -107,7 +107,7 @@ Final message, exactly this shape:
 > To start building, open a **new** Terminal window and paste:
 > `cd ~/code/<slug> && claude`
 >
-> Then type `/spec create "` followed by what you want the app to do, and close the quote. Claude will interview you, write a plan, and hand you a line starting with `/goal` — paste it and the factory builds. If it ever asks you a question, just answer in the chat.
+> Then type `/spec create "` followed by what you want the app to do, and close the quote. Claude will interview you, write a plan, and hand you a line starting with `/goal` — paste it and Shipwright builds. If it ever asks you a question, just answer in the chat.
 >
 > Where your keys live (all private, none of them go to GitHub): Render key in your Mac's Claude settings; Clerk keys and the database password inside the project's private settings files.
 >

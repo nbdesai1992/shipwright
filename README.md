@@ -1,4 +1,4 @@
-# Software Factory
+# Shipwright
 
 **Prompt to production.** A Claude Code orchestration toolkit with pre-built skills, worker agents, and deployment configs that turns a product description into deployed, tested software — autonomously.
 
@@ -17,7 +17,7 @@ Then, inside the new project:
 /goal <the prompt the spec skill hands you>
 ```
 
-The factory handles decomposition, coding, testing, visual design, and deployment across backend, frontend, and infrastructure — with you in the loop only when it matters.
+Shipwright handles decomposition, coding, testing, visual design, and deployment across backend, frontend, and infrastructure — with you in the loop only when it matters.
 
 **Two modes**, same machinery. **Quick Start** (default) asks four plain questions, takes every technical default, lets the runner push deploys, and tells every session to speak in plain language and take decisions from chat. **Custom** asks the developer questions: stack, auth, env group, who pushes.
 
@@ -26,7 +26,7 @@ The factory handles decomposition, coding, testing, visual design, and deploymen
 ## How It Works
 
 ```
-  You describe it           The factory builds it              You push to deploy
+  You describe it           Shipwright builds it              You push to deploy
 
   "Build a..."   ──►  Brief ──► 2-active/ ──► 4-done/   ──►   Deployed on Render
                   (backlog)         │              or
@@ -36,7 +36,7 @@ The factory handles decomposition, coding, testing, visual design, and deploymen
                               execute subtasks
 ```
 
-1. **Onboard** — Run the setup wizard, pointed at a project directory (existing or not). Four questions in Quick Start, the full stack interview in Custom. The factory creates the repo, installs skills, agents, hooks, and the brief board, pushes it to GitHub, and provisions the Render database and services from `render.yaml`.
+1. **Onboard** — Run the setup wizard, pointed at a project directory (existing or not). Four questions in Quick Start, the full stack interview in Custom. Shipwright creates the repo, installs skills, agents, hooks, and the brief board, pushes it to GitHub, and provisions the Render database and services from `render.yaml`.
 2. **Spec** — Describe what you want. The spec skill interviews you and produces a **goal brief**: a self-contained card on the `briefs/` Kanban board with requirements, acceptance criteria, and an embedded execution protocol — plus a ready-to-paste `/goal` prompt.
 3. **Run** — Paste the `/goal` prompt. Claude Code keeps running turns until the brief reaches a terminal folder; each turn the runner delegates subtasks to specialized worker subagents, updates the brief, and proves board state. Human blockers are parked while everything else continues — the brief only lands in `3-blocked/` when nothing runnable remains.
 4. **Deploy** — Infrastructure-first workflow. Backend deploys and tests against a real database before frontend work begins. Render auto-deploys on push; in Quick Start the runner pushes, in Custom you choose who does.
@@ -93,25 +93,25 @@ Non-developers: follow [GETTING-STARTED.md](GETTING-STARTED.md). Developers, the
 ### Once per machine and per Render account
 
 ```bash
-git clone https://github.com/nbdesai1992/software-factory.git ~/software-factory
+git clone https://github.com/nbdesai1992/shipwright.git ~/shipwright
 ```
 
 Render Dashboard, one time: add a **payment method** (Billing), **connect GitHub** (Account Settings → GitHub), and create an **API key** (Account Settings → API Keys). Store the key once, machine-wide:
 
 ```bash
-python3 ~/software-factory/onboard.py --set-render-key     # → ~/.claude/settings.json env block
+python3 ~/shipwright/onboard.py --set-render-key     # → ~/.claude/settings.json env block
 ```
 
-That is the only Render credential the factory uses — CLI, API calls, hooks, every project. `render login` is never required (its browser token expires; it remains a fallback).
+That is the only Render credential Shipwright uses — CLI, API calls, hooks, every project. `render login` is never required (its browser token expires; it remains a fallback).
 
 ### Step 1–3: clone → `/start` (or the wizard directly) → new repo
 
 ```bash
-cd ~/software-factory && claude        # then type /start — Claude drives everything below
+cd ~/shipwright && claude        # then type /start — Claude drives everything below
 # or, developers, run the wizard yourself:
-python3 ~/software-factory/onboard.py ~/code/my-new-app [--quick|--custom]
+python3 ~/shipwright/onboard.py ~/code/my-new-app [--quick|--custom]
 # or fully non-interactive:
-python3 ~/software-factory/onboard.py ~/code/my-new-app --quick --yes --name "My App" --description "..." --domain "..." --login no
+python3 ~/shipwright/onboard.py ~/code/my-new-app --quick --yes --name "My App" --description "..." --domain "..." --login no
 ```
 
 Tools the wizard needs: `gh` (repo creation + git auth), `node` + `dev-browser` (local screen previews). `/start` installs them; the Render CLI is optional.
@@ -132,7 +132,7 @@ claude                                  # Open Claude Code in your project
 # Answer a few questions about features, scope, constraints...
 # The spec skill writes the brief and hands you a /goal prompt — paste it:
 /goal Brief 001-invoice-tracker ... is in a terminal folder ...
-# The factory takes over: infra → backend → frontend → deploy, turn after turn
+# Shipwright takes over: infra → backend → frontend → deploy, turn after turn
 /status
 # Check the board at any time
 ```
@@ -197,9 +197,9 @@ The runner provisions infrastructure, writes backend code tested against your re
 
 ## Deploy Platform
 
-**Render only.** The factory ships one adapter: CLI reference, API docs, blueprint schema, pricing guide, starter `render.yaml` generation (monorepo with `rootDir` per service), `provision.py` to apply that file through the API, and a fail-closed hook that pins every project to one Render workspace. The onboarding wizard offers `render` or `none`; nothing else is wired up.
+**Render only.** Shipwright ships one adapter: CLI reference, API docs, blueprint schema, pricing guide, starter `render.yaml` generation (monorepo with `rootDir` per service), `provision.py` to apply that file through the API, and a fail-closed hook that pins every project to one Render workspace. The onboarding wizard offers `render` or `none`; nothing else is wired up.
 
-To add a platform later: `factory/templates/skills/deploy/{platform}/SKILL.md.tpl` plus a choice in `onboard.py`.
+To add a platform later: `shipwright/templates/skills/deploy/{platform}/SKILL.md.tpl` plus a choice in `onboard.py`.
 
 ## Human In The Loop
 
@@ -219,7 +219,7 @@ Full guide: [docs/HUMAN-INTERVENTION-GUIDE.md](docs/HUMAN-INTERVENTION-GUIDE.md)
 ## Re-Onboarding
 
 ```bash
-python /path/to/software-factory/onboard.py --reconfigure
+python /path/to/shipwright/onboard.py --reconfigure
 ```
 
 Re-reads saved config, lets you change settings, re-generates all files.

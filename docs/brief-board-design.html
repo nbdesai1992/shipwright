@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Software Factory — Brief Board &amp; Goal-Driven Orchestration</title>
+<title>Shipwright — Brief Board &amp; Goal-Driven Orchestration</title>
 <style>
   @page { size: letter; margin: 0.6in; }
   * { box-sizing: border-box; }
@@ -30,7 +30,7 @@
 </head>
 <body>
 
-<h1>Software Factory — Brief Board &amp; Goal-Driven Orchestration</h1>
+<h1>Shipwright — Brief Board &amp; Goal-Driven Orchestration</h1>
 <p class="subtitle">Design proposal · August 2026 · Kanban-as-folders for multi-brief operation, with <code>/goal</code> as the tenacity harness</p>
 
 <div class="kicker">
@@ -192,9 +192,9 @@
 <table>
   <tr><th>File</th><th>Change</th></tr>
   <tr><td><code>onboard.py</code></td><td>Scaffold <code>briefs/</code> + README; keep <code>session/</code> gitignored; add "Operating structure" section to <code>CLAUDE.md.tpl</code></td></tr>
-  <tr><td><code>factory/skills/spec/SKILL.md</code></td><td>CREATE writes <code>briefs/1-backlog/NNN-slug.md</code> (drop one-spec-only error); SHOW renders the board; print the ready-made <code>/goal</code> line on approval</td></tr>
-  <tr><td><code>factory/skills/orchestrate/SKILL.md</code></td><td>Phase 0 → brief selection per routing order; paths → <code>session/&lt;brief-id&gt;/</code>; blocker handling → park-and-continue; new routing step moves the brief and writes Outcome; status proof (<code>ls briefs/*/</code>) at every turn checkpoint</td></tr>
-  <tr><td><code>factory/skills/status/SKILL.md</code> + worker templates</td><td>Board rendering; path updates</td></tr>
+  <tr><td><code>shipwright/skills/spec/SKILL.md</code></td><td>CREATE writes <code>briefs/1-backlog/NNN-slug.md</code> (drop one-spec-only error); SHOW renders the board; print the ready-made <code>/goal</code> line on approval</td></tr>
+  <tr><td><code>shipwright/skills/orchestrate/SKILL.md</code></td><td>Phase 0 → brief selection per routing order; paths → <code>session/&lt;brief-id&gt;/</code>; blocker handling → park-and-continue; new routing step moves the brief and writes Outcome; status proof (<code>ls briefs/*/</code>) at every turn checkpoint</td></tr>
+  <tr><td><code>shipwright/skills/status/SKILL.md</code> + worker templates</td><td>Board rendering; path updates</td></tr>
 </table>
 
 </body>
