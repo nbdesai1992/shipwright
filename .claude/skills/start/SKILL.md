@@ -34,8 +34,14 @@ Read the `[MISSING]` lines. Fix each in this order, one message per fix, waiting
 
 - **git / python3 missing** → "Your Mac needs Apple's free developer tools. Paste this and accept the popup: `! xcode-select --install`. Tell me when it finishes." Re-run the check.
 - **gh (GitHub's command-line tool) missing** → if `brew --version` works: run `brew install gh` yourself. Otherwise download the latest macOS `.pkg` from GitHub's releases (query `https://api.github.com/repos/cli/cli/releases/latest` for the `macOS_universal.pkg` asset URL, `curl -L` it to `/tmp/gh.pkg`) and ask them to run `! sudo installer -pkg /tmp/gh.pkg -target /` (it asks for their Mac password). Re-run the check.
-- **node missing** → same pattern: `brew install node` if Homebrew exists, else send them to https://nodejs.org to download the LTS installer and double-click it. Node is only needed so Claude can preview the app's screens on their machine.
-- **dev-browser missing** → run `npm install -g dev-browser` yourself once node exists.
+- **node missing or older than 18** → install the official prebuilt Node LTS into their home folder yourself; no password, no Homebrew (Homebrew builds Node from source on older macOS and can take hours):
+  ```bash
+  mkdir -p ~/.local && cd ~/.local && A=$([ "$(uname -m)" = arm64 ] && echo arm64 || echo x64) && \
+  V=$(curl -fsSL https://nodejs.org/dist/index.json | python3 -c "import json,sys;print([r['version'] for r in json.load(sys.stdin) if r.get('lts')][0])") && \
+  curl -fsSL -o node.tgz "https://nodejs.org/dist/$V/node-$V-darwin-$A.tar.gz" && rm -rf node && tar xzf node.tgz && mv node-$V-darwin-$A node && rm node.tgz
+  ```
+  Then make it permanent: append `export PATH="$HOME/.local/node/bin:$PATH"` to `~/.zshrc` (create the file if missing) and use that PATH for every command you run afterwards. Node is only needed so Claude can preview the app's screens on their machine.
+- **dev-browser missing** → `PATH="$HOME/.local/node/bin:$PATH" npm install -g dev-browser`, then verify with `printf 'console.log(1)\n' | dev-browser --headless`. If it cannot find Chrome, run `dev-browser install`.
 - **render CLI** is marked optional. Never install it; the factory talks to Render directly.
 
 ## Step 2 — GitHub
