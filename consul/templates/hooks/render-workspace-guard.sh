@@ -1,6 +1,6 @@
 #!/bin/bash
 # render-workspace-guard.sh — PreToolUse(Bash) hook (installed by
-# shipwright onboarding)
+# consul onboarding)
 #
 # Fail-closed workspace pin: Render CLI/API commands are blocked unless the
 # current Render workspace matches the pin in .claude/render-workspace.

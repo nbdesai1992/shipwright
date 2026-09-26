@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-preflight.py — deterministic readiness check for a shipwright project
+preflight.py — deterministic readiness check for a Consul project
 (installed by onboarding into .claude/scripts/; rendered for {{PROJECT_NAME}}).
 
 Run it any time:   python3 .claude/scripts/preflight.py
@@ -10,7 +10,7 @@ It never changes anything. It checks, in order, everything the runner and
 workers will need on the first turn, and prints one line per check:
 
   [PASS] ...
-  [WARN] ...   something Shipwright can work around or that only matters later
+  [WARN] ...   something Consul can work around or that only matters later
   [FAIL] ...   the run will block on this; a fix hint follows on the next line
 
 Exit code 1 if any check FAILs, else 0. Standard library only.
@@ -96,7 +96,7 @@ def check_tools():
             code, out = run(["render", "--version"])
             report("PASS", f"render CLI: {out.splitlines()[0] if out else 'present'} (optional)")
         else:
-            report("PASS", "render CLI not installed — fine, Shipwright uses the Render API")
+            report("PASS", "render CLI not installed — fine, Consul uses the Render API")
 
     if shutil.which("gh"):
         code, _ = run(["gh", "auth", "status"])
@@ -312,7 +312,7 @@ def check_render_state(key, owner_id):
 # ── main ─────────────────────────────────────────────────────────
 
 def main():
-    print(f"== shipwright preflight: {{PROJECT_NAME}} ==")
+    print(f"== consul preflight: {{PROJECT_NAME}} ==")
     print(f"   project: {ROOT}")
     check_tools()
     check_git()

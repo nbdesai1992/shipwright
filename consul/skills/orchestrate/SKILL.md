@@ -85,7 +85,7 @@ DECISIONS (what/why), and if blocked: TYPE, DESCRIPTION, CONTEXT, OPTIONS.
 
 — set the row `blocked`, then **recompute the runnable set and keep executing everything not downstream of the blockage.** Do NOT stop, do NOT wait, do NOT guess around it.
 
-**COMPLETED deploy subtask (code committed, needs a push)** → read the push policy in CLAUDE.md (Deployment section). `human` → record an `external-action` blocker ("run `git push`") and continue other work. `shipwright` (or legacy `factory`) → run `git push` yourself (you, the runner — workers never push), append the pushed SHA to the Progress Log, then spawn the deploy-verification subtask. A failed push (auth, rejected) becomes an `external-action` blocker with the error text.
+**COMPLETED deploy subtask (code committed, needs a push)** → read the push policy in CLAUDE.md (Deployment section). `human` → record an `external-action` blocker ("run `git push`") and continue other work. `consul` (or legacy `shipwright` / `factory`) → run `git push` yourself (you, the runner — workers never push), append the pushed SHA to the Progress Log, then spawn the deploy-verification subtask. A failed push (auth, rejected) becomes an `external-action` blocker with the error text.
 
 **FAILED** (or subagent crashed / report unparseable) → increment Attempts. If < 3: re-spawn with specific feedback about the failure. If ≥ 3: convert to a blocker (type: `max-attempts-exhausted`) and park it as above.
 
@@ -135,7 +135,7 @@ A PostToolUse hook also writes a deterministic `session/{brief-id}/trajectory.js
 
 ## Rules
 
-- You MUST NOT write implementation code. Plan, spawn, verify, record, route. (Running `git push` under a `shipwright` push policy, and running `.claude/scripts/*.py`, are runner duties, not implementation.)
+- You MUST NOT write implementation code. Plan, spawn, verify, record, route. (Running `git push` under a `consul` push policy, and running `.claude/scripts/*.py`, are runner duties, not implementation.)
 - If CLAUDE.md has a "Working Mode: Quick Start" section, follow it in every message to the human: plain language, questions with options, answers taken from chat and written to the brief by you.
 - Single writer: only you edit the brief or move it between folders. Workers never do.
 - Never check a requirement box without verified acceptance evidence. Never weaken or remove a requirement to make it pass.

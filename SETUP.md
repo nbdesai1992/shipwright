@@ -1,6 +1,6 @@
 # Setup Guide (developers)
 
-Step-by-step instructions for creating a new project with Shipwright. Non-developers: use [GETTING-STARTED.md](GETTING-STARTED.md) instead — same result, plainer words.
+Step-by-step instructions for creating a new project with Consul. Non-developers: use [GETTING-STARTED.md](GETTING-STARTED.md) instead — same result, plainer words.
 
 The contract: **clone this repo → run the wizard → a new project repo exists**, on GitHub, with its Render database and services live. Everything below serves those three steps.
 
@@ -10,13 +10,13 @@ Once per machine:
 
 | Tool | Install | Why |
 |------|---------|-----|
-| [Claude Code](https://claude.ai/claude-code) | per its docs | runs Shipwright |
+| [Claude Code](https://claude.ai/claude-code) | per its docs | runs Consul |
 | Python 3.8+ and git 2.28+ | usually present | onboarding script; `git init -b main` |
-| [Render CLI](https://docs.render.com/cli) | optional (`brew install render`) | convenience only — every operation has an API equivalent and Shipwright uses the API |
+| [Render CLI](https://docs.render.com/cli) | optional (`brew install render`) | convenience only — every operation has an API equivalent and Consul uses the API |
 | [GitHub CLI](https://cli.github.com) | `brew install gh` then `gh auth login` | onboarding creates + pushes the repo (optional, but the smooth path) |
 | [dev-browser](https://github.com/sawyerhood/dev-browser) | `npm install -g dev-browser` (then `dev-browser install` if it cannot find Chrome) | frontend worker screenshots the UI |
 
-Or open Claude Code in Shipwright clone and type `/start`: it checks for all of the above, installs what's missing, walks through the account steps, and drives the wizard non-interactively.
+Or open Claude Code in your Consul clone and type `/start`: it checks for all of the above, installs what's missing, walks through the account steps, and drives the wizard non-interactively.
 
 Accounts, one-time:
 - **GitHub.**
@@ -25,24 +25,24 @@ Accounts, one-time:
 
 ### Render API key (the credential)
 
-Shipwright authenticates to Render with a long-lived **API key**, never with the browser login. `render login` writes a token that expires after a few weeks and silently breaks autonomous runs; the API key does not expire.
+Consul authenticates to Render with a long-lived **API key**, never with the browser login. `render login` writes a token that expires after a few weeks and silently breaks autonomous runs; the API key does not expire.
 
 1. Render Dashboard → your avatar → **Account Settings → API Keys → Create API Key**
 2. Store it once, machine-wide:
    ```bash
-   python3 ~/shipwright/onboard.py --set-render-key
+   python3 ~/consul/onboard.py --set-render-key
    ```
-   It goes into the `env` block of `~/.claude/settings.json`. Claude Code injects that block into every session; the Render CLI honors `RENDER_API_KEY`; Shipwright's resolver reads it. `/start` asks for it if it is missing.
+   It goes into the `env` block of `~/.claude/settings.json`. Claude Code injects that block into every session; the Render CLI honors `RENDER_API_KEY`; Consul's resolver reads it. `/start` asks for it if it is missing.
 3. Per-project override, if you ever need one: `.claude/settings.local.json` `{"env": {"RENDER_API_KEY": "rnd_..."}}` (gitignored). The wizard copies the machine key there so each project is self-contained.
 
-Every Render call in Shipwright resolves the key through `.claude/scripts/render-api-key.sh` (environment → project settings.local.json → project `.env` → `~/.claude/settings.json` → login token), so the CLI, direct API calls, the provisioner, and the workspace guard all use the same credential. The workspace pin comes from the key's visible workspaces (or the CLI login if one exists); with several workspaces the wizard asks which one.
+Every Render call in Consul resolves the key through `.claude/scripts/render-api-key.sh` (environment → project settings.local.json → project `.env` → `~/.claude/settings.json` → login token), so the CLI, direct API calls, the provisioner, and the workspace guard all use the same credential. The workspace pin comes from the key's visible workspaces (or the CLI login if one exists); with several workspaces the wizard asks which one.
 
-## Step 1: Run the Factory Onboarding
+## Step 1: Run the Consul wizard
 
 Point the onboarding script at a project directory. It does not have to exist yet — you'll be asked whether to create it:
 
 ```bash
-python /path/to/shipwright/onboard.py ~/code/your-project
+python /path/to/consul/onboard.py ~/code/your-project
 ```
 
 First question: **Quick Start or Custom.** Quick Start asks four plain questions (name, one sentence, who it's for, sign-in yes/no) and takes every default: Next.js + FastAPI + PostgreSQL on Render, no env group, runner pushes deploys, plain-language runner. Custom asks about stack, auth, env group, and push policy. Both pin the project to the Render workspace your CLI is logged in to (name and ID — every Render command is blocked outside that workspace) and ask for the Render API key and, if Clerk, its two keys (hidden input, stored gitignored). Then the wizard installs everything:
@@ -62,7 +62,7 @@ First question: **Quick Start or Custom.** Quick Start asks four plain questions
 
 Then git: `git init`, create the GitHub repo via `gh` (default yes), commit, push. Decline any of these and it prints the command to run yourself.
 
-Already have a repo cloned? Just run `python /path/to/shipwright/onboard.py` from inside it — the existing git repo and remote are left alone.
+Already have a repo cloned? Just run `python /path/to/consul/onboard.py` from inside it — the existing git repo and remote are left alone.
 
 ## Step 2: Live services — the wizard provisions Render
 
@@ -128,7 +128,7 @@ Either way, the runner takes over:
 
 1. **Infrastructure** — Runs `provision.py` (idempotent), audits live Render state against `render.yaml`, verifies the database is reachable from `backend/.env`
 2. **Backend** — Writes models, migrations, API endpoints, tests against real Render DB
-3. **Deploy backend** — Commits code. Push policy `human`: asks you to `git push` (review checkpoint). Push policy `shipwright` (Quick Start default): the runner pushes. Render auto-deploys.
+3. **Deploy backend** — Commits code. Push policy `human`: asks you to `git push` (review checkpoint). Push policy `consul` (Quick Start default): the runner pushes. Render auto-deploys.
 4. **Frontend** — Writes UI with domain-specific design, wired to deployed backend API
 5. **Deploy frontend** — Same push policy. Render auto-deploys.
 6. **Verify** — Screenshots the deployed site, checks against requirements
@@ -162,7 +162,7 @@ After answering, run `/orchestrate` — the brief moves back to `2-active/` and 
 To change your project's configuration later:
 
 ```bash
-python /path/to/shipwright/onboard.py --reconfigure
+python /path/to/consul/onboard.py --reconfigure
 ```
 
 ## Diagnostic: Trajectory

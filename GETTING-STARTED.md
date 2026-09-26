@@ -10,12 +10,12 @@ You do not need to know how to code. You do need a Mac, [Claude Code](https://cl
 
 ---
 
-## Step 1: Get Shipwright onto your Mac
+## Step 1: Get Consul onto your Mac
 
 Open **Terminal** (press ⌘-Space, type `Terminal`, press Enter). Paste this line and press Enter:
 
 ```bash
-git clone https://github.com/nbdesai1992/shipwright.git ~/shipwright
+git clone https://github.com/nbdesai1992/consul.git ~/consul
 ```
 
 If a window pops up offering to install "command line developer tools", click **Install**, wait for it to finish, then paste the line again. That is Apple's free toolkit; you only do this once.
@@ -25,7 +25,7 @@ If a window pops up offering to install "command line developer tools", click **
 Paste this line and press Enter:
 
 ```bash
-cd ~/shipwright && claude
+cd ~/consul && claude
 ```
 
 Claude Code opens. Type:
@@ -53,7 +53,7 @@ Claude's last message tells you to open a **new** Terminal window and paste a li
 cd ~/code/my-app && claude
 ```
 
-That opens Claude Code inside your new project. Type `/spec create "` and describe what you want the app to do, then close the quote. Claude interviews you about it, writes a plan, and gives you a line beginning with `/goal`. Paste that line. Shipwright builds, tests, designs, and publishes on its own. Whenever it needs a decision from you, it asks a short question with options; answer in the chat. When it finishes, it gives you the live address.
+That opens Claude Code inside your new project. Type `/spec create "` and describe what you want the app to do, then close the quote. Claude interviews you about it, writes a plan, and gives you a line beginning with `/goal`. Paste that line. Consul builds, tests, designs, and publishes on its own. Whenever it needs a decision from you, it asks a short question with options; answer in the chat. When it finishes, it gives you the live address.
 
 Useful while it runs:
 
@@ -69,11 +69,11 @@ All of these are private to your Mac and your project. None of them are ever put
 
 | Key | Where it is stored | Used for |
 |-----|--------------------|----------|
-| Render API key | Your Mac's Claude settings file (`~/.claude/settings.json`), once, for every project | Letting Shipwright create and manage your servers |
+| Render API key | Your Mac's Claude settings file (`~/.claude/settings.json`), once, for every project | Letting Consul create and manage your servers |
 | Clerk keys (only if sign-in) | The project's private settings file (`.claude/settings.local.json`) | Sign-in |
 | Database password | The project's `backend/.env` | Testing against the real database |
 
-If you ever need to replace the Render key: in Shipwright folder, paste `! python3 onboard.py --set-render-key` and enter the new one.
+If you ever need to replace the Render key: in the Consul folder, paste `! python3 onboard.py --set-render-key` and enter the new one.
 
 ## Appendix: Render account setup, click by click
 
@@ -84,7 +84,7 @@ Claude walks you through this during `/start`; this is the same thing written do
 3. **Connect GitHub.** Top-right, click your avatar → **Account Settings** → **GitHub** → **Connect**. GitHub asks which repositories Render may read; choose **All repositories** so every future project works without repeating this.
 4. **Create an API key.** Top-right avatar → **Account Settings** → **API Keys** → **Create API Key**. Copy it. Back in Claude Code, paste `! python3 onboard.py --set-render-key` and enter the key when asked (typing is hidden). Claude confirms it was stored.
 
-That is everything Render ever needs from you. You never create servers in the Dashboard; Shipwright does it.
+That is everything Render ever needs from you. You never create servers in the Dashboard; Consul does it.
 
 ## If something goes wrong
 
@@ -104,7 +104,7 @@ It lists what will be deleted, asks you to type the project's name to confirm, a
 
 ## Starting another project
 
-Open Claude Code in Shipwright folder again (`cd ~/shipwright && claude`) and type `/start`. The account steps are already done, so it goes straight to the four questions.
+Open Claude Code in the Consul folder again (`cd ~/consul && claude`) and type `/start`. The account steps are already done, so it goes straight to the four questions.
 
 ---
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Shipwright — Project Onboarding
+Consul — Project Onboarding
 
 Sets up the Claude Code orchestration system for a target project.
 Copies generic skills, renders customizable templates, and generates
@@ -56,7 +56,7 @@ class ProjectConfig:
     dev_server_command: str = "npm run dev"
     testing_policy: str = "local"
     mode: str = "quick"            # quick (defaults, plain-language runner) | custom (developer chooses)
-    push_policy: str = "human"     # human (review checkpoint) | shipwright (runner pushes)
+    push_policy: str = "human"     # human (review checkpoint) | consul (runner pushes)
 
     def to_replacements(self) -> dict:
         """Return a dict of {{PLACEHOLDER}} → value for template rendering."""
@@ -93,8 +93,8 @@ class ProjectConfig:
         }
 
     def _push_policy_line(self) -> str:
-        if self.push_policy in ("shipwright", "factory"):
-            return ("- **Push policy: shipwright.** After a deploy subtask commits, the runner runs `git push` itself, "
+        if self.push_policy in RUNNER_PUSH_POLICIES:
+            return ("- **Push policy: consul.** After a deploy subtask commits, the runner runs `git push` itself, "
                     "records the SHA in the Progress Log, and then spawns the deploy-verification subtask. No human push checkpoint.")
         return ("- **Push policy: human.** Deploy subtasks commit and then raise an `external-action` blocker; "
                 "the human reviews and runs `git push`. Render auto-deploys on push.")
@@ -180,6 +180,13 @@ FRAMEWORK_DEFAULTS = {
 #   --no-github / --no-provision                skip those steps
 ANSWERS: dict = {}
 AUTO_YES = False
+
+# Names carried over from earlier product names (Software Factory, Shipwright).
+# Old projects keep working: their config file is still read, and their push
+# policy value still means "the runner pushes".
+CONFIG_FILE = "consul.json"
+LEGACY_CONFIG_FILES = ("shipwright.json", "factory-config.json")
+RUNNER_PUSH_POLICIES = ("consul", "shipwright", "factory")
 
 
 def parse_flags(argv: list) -> list:
@@ -267,7 +274,7 @@ def store_user_setting_env(key: str, value: str):
     """Write one value into the env block of ~/.claude/settings.json.
 
     Claude Code injects that block into every session on this machine, and
-    Shipwright's resolver reads it, so a Render API key stored here serves
+    Consul's resolver reads it, so a Render API key stored here serves
     every project without `render login`.
     """
     data = {}
@@ -342,7 +349,7 @@ def machine_preflight():
     if shutil.which("render"):
         line(True, "render CLI (optional)")
     else:
-        print("    [opt] render CLI not installed — fine; Shipwright talks to Render through its API")
+        print("    [opt] render CLI not installed — fine; Consul talks to Render through its API")
     api_key, key_source = detect_render_api_key()
     if api_key:
         line(True, f"Render API key ({key_source})")
@@ -446,7 +453,7 @@ def ask_render_api_key(config: ProjectConfig):
         print(f"\n  Render API key: found on this machine ({source}) — using it for this project.")
         config.render_api_key_input = key
         return
-    print("\n  Render needs an API key so Shipwright can create and manage your services.")
+    print("\n  Render needs an API key so Consul can create and manage your services.")
     print("  Render Dashboard → your avatar → Account Settings → API Keys → Create API Key. Input is hidden.")
     key = ask_secret("  Render API key (rnd_...; blank = fall back to `render login`): ", key="render_api_key")
     config.render_api_key_input = key
@@ -491,11 +498,11 @@ def ask_clerk_keys(config: ProjectConfig):
 
 def interview_quick() -> ProjectConfig:
     """Quick Start: four plain questions; every technical choice takes the default."""
-    config = ProjectConfig(mode="quick", push_policy="shipwright", env_group_name="")
+    config = ProjectConfig(mode="quick", push_policy="consul", env_group_name="")
 
     print()
     print("=" * 60)
-    print("  SHIPWRIGHT — Quick Start")
+    print("  CONSUL — Quick Start")
     print("=" * 60)
     print()
     print("  Four questions. Everything technical is chosen for you:")
@@ -536,7 +543,7 @@ def interview() -> ProjectConfig:
 
     print()
     print("=" * 60)
-    print("  SHIPWRIGHT — Project Onboarding (Custom)")
+    print("  CONSUL — Project Onboarding (Custom)")
     print("=" * 60)
     print()
     print("  Answer a few questions to set up the orchestration system.")
@@ -597,7 +604,7 @@ def interview() -> ProjectConfig:
 
         # API key (machine-wide if present), then the workspace pin from the
         # CLI login or the key's visible owners. Never stored in
-        # shipwright.json; written to .claude/settings.local.json.
+        # consul.json; written to .claude/settings.local.json.
         ask_render_api_key(config)
         choose_render_workspace(config)
         if not config.render_workspace and not config.render_workspace_id:
@@ -608,8 +615,8 @@ def interview() -> ProjectConfig:
                 config.render_workspace_id = ask("Render workspace ID (tea-...; blank = name only)")
 
         config.push_policy = ask_choice(
-            "Who pushes to deploy? 'human' = you review and git push (checkpoint); 'shipwright' = the runner pushes",
-            ["human", "shipwright"],
+            "Who pushes to deploy? 'human' = you review and git push (checkpoint); 'consul' = the runner pushes",
+            ["human", "consul"],
             default="human",
         )
 
@@ -742,7 +749,7 @@ def generate_render_yaml(config: ProjectConfig, target: Path):
 
     lines = [
         f"# Render Blueprint — {config.project_name}",
-        f"# Generated by shipwright onboarding. Customize as needed.",
+        f"# Generated by consul onboarding. Customize as needed.",
         f"# Docs: https://docs.render.com/blueprint-spec",
         "",
     ]
@@ -1069,7 +1076,7 @@ def setup_git_repo(config: ProjectConfig, target: Path) -> bool:
 
     Returns True when the setup commit is on a remote — the precondition for
     provisioning, since Render builds from GitHub. This is step 3 of the
-    factory's contract (clone → wizard → new repo), so the defaults say yes.
+    Consul contract (clone → wizard → new repo), so the defaults say yes.
     """
     if (target / ".git").is_dir():
         print("    . git repo (already initialized)")
@@ -1110,15 +1117,15 @@ def setup_git_repo(config: ProjectConfig, target: Path) -> bool:
     # Initial commit — Render needs the skeleton + render.yaml on the remote
     ok, dirty = run_cmd(["git", "status", "--porcelain"], target)
     if ok and dirty:
-        if not confirm("Commit Shipwright setup?"):
+        if not confirm("Commit Consul setup?"):
             print("    - skipped initial commit")
             return False
         run_cmd(["git", "add", "-A"], target)
-        ok, out = run_cmd(["git", "commit", "-m", "shipwright setup"], target)
+        ok, out = run_cmd(["git", "commit", "-m", "consul setup"], target)
         if not ok:
             print(f"    ! commit failed: {out.splitlines()[0] if out else 'unknown error'}")
             return False
-        print("    + commit 'factory setup'")
+        print("    + commit 'consul setup'")
 
     ok, remotes = run_cmd(["git", "remote"], target)
     if not (ok and remotes):
@@ -1175,9 +1182,9 @@ def provision_render(config: ProjectConfig, target: Path, pushed: bool):
 # Project Setup
 # ──────────────────────────────────────────────
 
-def setup_project(config: ProjectConfig, target: Path, factory: Path):
-    skills_src = factory / "skills"
-    templates = factory / "templates"
+def setup_project(config: ProjectConfig, target: Path, source: Path):
+    skills_src = source / "skills"
+    templates = source / "templates"
     replacements = config.to_replacements()
 
     claude_dir = target / ".claude"
@@ -1334,7 +1341,7 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
         additions = [l for l in lines_to_add if l not in existing]
         if additions:
             with open(gitignore_path, "a", encoding="utf-8") as f:
-                f.write("\n# Orchestration (added by shipwright)\n")
+                f.write("\n# Orchestration (added by consul)\n")
                 for line in additions:
                     f.write(f"{line}\n")
             print(f"    + .gitignore (updated)")
@@ -1342,7 +1349,7 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
             print(f"    . .gitignore (already configured)")
     else:
         gitignore_path.write_text(
-            "# Orchestration (added by shipwright)\n" + "".join(f"{l}\n" for l in lines_to_add),
+            "# Orchestration (added by consul)\n" + "".join(f"{l}\n" for l in lines_to_add),
             encoding="utf-8",
         )
         print(f"    + .gitignore (created)")
@@ -1360,9 +1367,9 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
         generate_frontend_skeleton(config, target)
 
     # ── 9. Save config for re-onboarding ──
-    config_path = claude_dir / "shipwright.json"
+    config_path = claude_dir / CONFIG_FILE
     config_path.write_text(json.dumps(asdict(config), indent=2) + "\n", encoding="utf-8")
-    print(f"    + shipwright.json (for re-onboarding)")
+    print(f"    + {CONFIG_FILE} (for re-onboarding)")
 
     # ── 10. Git repo + remote (.gitignore and all files exist by now) ──
     print("\n  Git:")
@@ -1391,7 +1398,7 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
     3. Open Claude Code:  claude
     4. Run:  /spec create "describe what you want to build"
     5. Approve the brief, then paste the /goal prompt it hands you.
-       Shipwright works until the brief is done or needs you.
+       Consul works until the brief is done or needs you.
     6. /status shows the board at any time.
     7. {blocked_hint}
 
@@ -1416,7 +1423,7 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
     - frontend-worker  {'Installed' if config.frontend_framework != 'none' else 'Skipped (no frontend)'}
     - infra-worker     {'Installed' if config.deploy_platform != 'none' else 'Skipped (no deploy platform)'}
 
-  See docs/HUMAN-INTERVENTION-GUIDE.md in the shipwright
+  See docs/HUMAN-INTERVENTION-GUIDE.md in the consul
   repo for when you'll need to step in during orchestration.
 """)
 
@@ -1426,13 +1433,13 @@ def setup_project(config: ProjectConfig, target: Path, factory: Path):
 # ──────────────────────────────────────────────
 
 def main():
-    # Determine factory directory (where this script lives)
+    # Determine the Consul source directory (next to this script)
     script_dir = Path(__file__).resolve().parent
-    shipwright_dir = script_dir / "shipwright"
+    consul_dir = script_dir / "consul"
 
-    if not shipwright_dir.exists():
-        print(f"Error: shipwright/ directory not found at {shipwright_dir}")
-        print("Make sure you're running this from the shipwright repo.")
+    if not consul_dir.exists():
+        print(f"Error: consul/ directory not found at {consul_dir}")
+        print("Make sure you're running this from the consul repo.")
         sys.exit(1)
 
     # Determine target directory
@@ -1483,13 +1490,15 @@ def main():
     print(f"\n  Target project: {target}")
 
     # Check for existing config (re-onboarding)
-    existing_config = target / ".claude" / "shipwright.json"
-    if not existing_config.exists() and (target / ".claude" / "factory-config.json").exists():
-        existing_config = target / ".claude" / "factory-config.json"   # projects onboarded before the rename
+    # consul.json, else a config written before a rename (shipwright.json, factory-config.json)
+    existing_config = next((target / ".claude" / n for n in (CONFIG_FILE, *LEGACY_CONFIG_FILES)
+                            if (target / ".claude" / n).exists()), target / ".claude" / CONFIG_FILE)
     if reconfigure and existing_config.exists():
         print(f"  Loading saved configuration from {existing_config.name}...")
         saved = json.loads(existing_config.read_text(encoding="utf-8"))
         config = ProjectConfig(**saved)
+        if config.push_policy in RUNNER_PUSH_POLICIES:
+            config.push_policy = "consul"      # saved before the rename as shipwright/factory
 
         print()
         print("  Saved configuration:")
@@ -1549,7 +1558,7 @@ def main():
         print("  Aborted.")
         sys.exit(0)
 
-    setup_project(config, target, shipwright_dir)
+    setup_project(config, target, consul_dir)
 
 
 if __name__ == "__main__":

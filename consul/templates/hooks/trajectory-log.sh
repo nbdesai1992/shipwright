@@ -1,6 +1,6 @@
 #!/bin/bash
 # trajectory-log.sh — PostToolUse hook for subagent calls (installed by
-# shipwright onboarding)
+# consul onboarding)
 #
 # Appends a deterministic JSONL event to session/{brief-id}/trajectory.jsonl
 # for every worker subagent invocation. This complements the model-written

@@ -39,7 +39,7 @@ phase-2: Backend Development (FR-1, FR-2, FR-3)
     p2-task-3: API endpoints, tested against Render DB → backend-worker (depends on p2-task-2)
     p2-task-4: Commit code, then deploy per CLAUDE.md push policy:
                human → raise blocker for the human to push;
-               shipwright → the RUNNER runs `git push` itself (workers never push).
+               consul → the RUNNER runs `git push` itself (workers never push).
                After push: poll deploy status until live or failed.
                If failed: pull build logs, raise blocker with error.
                If live: verify health endpoints. → infra-worker (depends on p2-task-3)
@@ -58,7 +58,7 @@ phase-3: Frontend Development (FR-1, FR-2, NFR-2)
 Key points:
 - Infrastructure first, via the provisioner. `provision.py` creates whatever render.yaml declares and writes backend/.env with DB credentials. Nobody creates Render resources by hand.
 - Backend tests run against the REAL Render database (no mocks, no SQLite).
-- Deploy tasks commit code, then follow the **push policy in CLAUDE.md**: `human` → raise a BLOCKER for the human to `git push` (review checkpoint); `shipwright` → the runner pushes. Render auto-deploys on push either way.
+- Deploy tasks commit code, then follow the **push policy in CLAUDE.md**: `human` → raise a BLOCKER for the human to `git push` (review checkpoint); `consul` (legacy `shipwright`) → the runner pushes. Render auto-deploys on push either way.
 - Frontend development uses local dev server for visual iteration, wired to deployed backend API.
 - Post-deploy verification screenshots the LIVE deployed URL (not localhost).
 - Each phase decomposes just-in-time.

@@ -3,87 +3,100 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Shipwright</title>
-<meta name="description" content="Describe an app in plain words. An open-source Claude Code toolkit turns it into a spec, a brief, working code, and live services on Render.">
+<title>Consul</title>
+<meta name="description" content="Set the mandate. Consul sees it through. Describe an app in plain words and an open-source Claude Code toolkit turns it into a plan, working code, and live services on Render.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
 :root{
-  --ground:#EDF0F3; --paper:#FFFFFF; --ink:#16233A; --ink-2:#4A5568; --ink-3:#7B8794;
-  --line:#CBD3DC; --rail:#B7C1CC;
-  --accent:#E8590C; --accent-ink:#FFFFFF; --accent-soft:#FDE9DC;
-  --live:#1F8A8A; --live-soft:#DDF2F0;
-  --card:#FFF9E8; --card-line:#E9D9A8; --pin:#C0392B;
-  --code-bg:#16233A; --code-ink:#E6EDF3; --code-dim:#8AA0B8;
-  --shadow:0 1px 2px rgba(22,35,58,.08),0 8px 24px -12px rgba(22,35,58,.25);
+  --ground:#F3EFE6; --paper:#FFFDF8; --ink:#1F1A24; --ink-2:#4B4452; --ink-3:#7A7282;
+  --line:#DDD4C5; --rail:#CBBFAB;
+  --accent:#7A1F3D; --accent-ink:#FFFFFF; --accent-soft:#F4E3E9;
+  --gold:#A8812A; --gold-soft:#F3E8CC;
+  --live:#4A7536; --live-soft:#E2EDD9;
+  --card:#F6EBD2; --card-line:#D8C391; --pin:#9C1C1C;
+  --code-bg:#1F1A24; --code-ink:#EEE8F0; --code-dim:#9A90A3;
+  --shadow:0 1px 2px rgba(31,26,36,.08),0 8px 24px -12px rgba(31,26,36,.25);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --ground:#111826; --paper:#1A2333; --ink:#EEF2F6; --ink-2:#B7C2CE; --ink-3:#8593A3;
-    --line:#2B3648; --rail:#3A4759;
-    --accent:#FF7A2E; --accent-ink:#1A1208; --accent-soft:#3A2415;
-    --live:#3FBDB8; --live-soft:#173837;
-    --card:#2A2A22; --card-line:#4A4530; --pin:#E0554A;
-    --code-bg:#0C121C; --code-ink:#E6EDF3; --code-dim:#7F93AA;
+    --ground:#15121A; --paper:#1E1A24; --ink:#F1ECE4; --ink-2:#C4BCC9; --ink-3:#8F8698;
+    --line:#342D3C; --rail:#4A4252;
+    --accent:#D77C9B; --accent-ink:#1A0F14; --accent-soft:#3A1E29;
+    --gold:#D6B25C; --gold-soft:#3A3120;
+    --live:#8DBB6E; --live-soft:#223020;
+    --card:#2E2A20; --card-line:#5A4E30; --pin:#D2463C;
+    --code-bg:#0F0C13; --code-ink:#EEE8F0; --code-dim:#8F8698;
     --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -12px rgba(0,0,0,.6);
   }
 }
 :root[data-theme="dark"]{
-  --ground:#111826; --paper:#1A2333; --ink:#EEF2F6; --ink-2:#B7C2CE; --ink-3:#8593A3;
-  --line:#2B3648; --rail:#3A4759;
-  --accent:#FF7A2E; --accent-ink:#1A1208; --accent-soft:#3A2415;
-  --live:#3FBDB8; --live-soft:#173837;
-  --card:#2A2A22; --card-line:#4A4530; --pin:#E0554A;
-  --code-bg:#0C121C; --code-ink:#E6EDF3; --code-dim:#7F93AA;
+  --ground:#15121A; --paper:#1E1A24; --ink:#F1ECE4; --ink-2:#C4BCC9; --ink-3:#8F8698;
+  --line:#342D3C; --rail:#4A4252;
+  --accent:#D77C9B; --accent-ink:#1A0F14; --accent-soft:#3A1E29;
+  --gold:#D6B25C; --gold-soft:#3A3120;
+  --live:#8DBB6E; --live-soft:#223020;
+  --card:#2E2A20; --card-line:#5A4E30; --pin:#D2463C;
+  --code-bg:#0F0C13; --code-ink:#EEE8F0; --code-dim:#8F8698;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -12px rgba(0,0,0,.6);
 }
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:var(--ground);color:var(--ink);font-family:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:17px;line-height:1.55;padding-inline:clamp(16px,4vw,48px);padding-block:0 64px}
-h1,h2,h3{font-family:"Bricolage Grotesque","IBM Plex Sans",system-ui,sans-serif;text-wrap:balance;margin:0;line-height:1.05;letter-spacing:-.01em}
-h1{font-size:clamp(40px,7vw,84px);font-weight:800}
-h2{font-size:clamp(28px,3.6vw,44px);font-weight:700}
-h3{font-size:20px;font-weight:700;line-height:1.25}
+body{background:var(--ground);color:var(--ink);font-family:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:17px;line-height:1.55;padding-inline:clamp(16px,4vw,48px);overflow-x:hidden}
+h1,h2,h3{text-wrap:balance;margin:0}
+h1,h2,.roman{font-family:"Cinzel","Trajan Pro",Georgia,serif}
+h1{font-size:clamp(38px,5vw,62px);font-weight:700;line-height:1.04;letter-spacing:.01em}
+h1 .l2{display:block;margin-top:12px;font-size:.54em;font-weight:600;color:var(--accent);letter-spacing:.02em}
+h2{font-size:clamp(24px,3vw,36px);font-weight:600;line-height:1.15;letter-spacing:.005em}
+h3{font-size:18px;font-weight:600;line-height:1.3}
 p{margin:0;max-width:62ch}
 a{color:inherit}
 code,pre,.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
 .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.eyebrow .rn{font-family:"Cinzel",Georgia,serif;color:var(--gold);font-weight:700;letter-spacing:.1em;margin-right:6px}
 .wrap{max-width:1180px;margin-inline:auto}
 header.top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding-block:22px 8px;flex-wrap:wrap}
-.brand{display:flex;align-items:center;gap:10px;font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:18px;letter-spacing:-.01em}
-.brand .mark{width:28px;height:26px;position:relative}
-.brand .mark::before{content:"";position:absolute;left:0;right:0;bottom:2px;height:11px;background:var(--ink);border-radius:0 0 12px 12px / 0 0 14px 14px}
-.brand .mark::after{content:"";position:absolute;left:12px;top:0;width:3px;height:14px;background:var(--accent)}
-nav{display:flex;gap:22px;font-size:15px;color:var(--ink-2)}
+.brand{display:flex;align-items:center;gap:10px;font-family:"Cinzel",Georgia,serif;font-weight:700;font-size:19px;letter-spacing:.14em}
+.brand svg{width:30px;height:30px;color:var(--gold);fill:var(--gold);flex:none}
+nav{display:flex;gap:22px;font-size:15px;color:var(--ink-2);flex-wrap:wrap}
 nav a{text-decoration:none}
 nav a:hover,nav a:focus-visible{color:var(--ink);text-decoration:underline;text-underline-offset:4px}
 .oss{font-size:12px;letter-spacing:.12em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:5px 11px;color:var(--ink-2);font-weight:600;background:var(--paper)}
 
 /* Hero */
 .hero{display:grid;grid-template-columns:minmax(0,1fr);gap:36px;padding-block:44px 24px;align-items:start}
-@media (min-width:900px){.hero{grid-template-columns:5fr 7fr;gap:48px;padding-block:64px 32px}}
-.hero .lede{font-size:clamp(18px,1.6vw,21px);color:var(--ink-2);margin-top:22px}
-.cmds{margin-top:28px;background:var(--code-bg);color:var(--code-ink);border-radius:10px;padding:18px 20px;font-size:14.5px;line-height:1.7;box-shadow:var(--shadow);overflow-x:auto}
+@media (min-width:900px){.hero{grid-template-columns:11fr 13fr;gap:48px;padding-block:64px 32px}}
+.hero .lede{font-size:clamp(18px,1.6vw,21px);color:var(--ink-2);margin-top:24px}
+.cmds{margin-top:28px;background:var(--code-bg);color:var(--code-ink);border-radius:6px;padding:18px 20px;font-size:14.5px;line-height:1.7;box-shadow:var(--shadow);overflow-x:auto;border-top:3px solid var(--gold)}
 .cmds .c{color:var(--code-dim)}
-.cmds .p{color:var(--accent)}
+.cmds .p{color:var(--gold)}
 .hero-cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px;align-items:center}
-.btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-weight:600;font-size:15px;padding:12px 18px;border-radius:8px;border:1.5px solid var(--ink);color:var(--ink);background:transparent}
+.btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-weight:600;font-size:15px;padding:12px 18px;border-radius:4px;border:1.5px solid var(--ink);color:var(--ink);background:transparent}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-.btn:focus-visible{outline:3px solid var(--live);outline-offset:2px}
+.btn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 
-/* Pipeline */
-.line{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:22px 22px 18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+/* The procession: one brief travels the road from describe to live */
+.line{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:34px 22px 18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.line::before{content:"";position:absolute;left:0;right:0;top:0;height:9px;background:var(--gold);opacity:.6;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='9'%3E%3Cpath d='M0 8H17V1H3V6H13V3.5H7' fill='none' stroke='black' stroke-width='1.3'/%3E%3C/svg%3E") repeat-x 0 0/18px 9px;
+          mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='9'%3E%3Cpath d='M0 8H17V1H3V6H13V3.5H7' fill='none' stroke='black' stroke-width='1.3'/%3E%3C/svg%3E") repeat-x 0 0/18px 9px}
+.line .wm{position:absolute;right:-56px;bottom:-64px;width:260px;height:260px;color:var(--gold);fill:var(--gold);opacity:.07;pointer-events:none}
+.line-head,.stations,.lanes{position:relative;z-index:1}
 .line-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
 .status{font-size:13.5px;color:var(--ink-2);min-height:1.6em;display:flex;align-items:center;gap:8px}
 .status .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex:none;animation:blink 1.2s ease-in-out infinite}
-.stations{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:26px;padding-top:56px}
-.rail{position:absolute;left:12.5%;right:12.5%;top:24px;height:3px;background:var(--rail);border-radius:2px}
-.rail::after{content:"";position:absolute;inset:0;background:var(--accent);transform-origin:left;transform:scaleX(0);animation:fill 14s linear infinite;border-radius:2px}
+.stations{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:26px;padding-top:58px}
+/* the road: paving stones, filled in as the brief advances */
+.rail{position:absolute;left:12.5%;right:12.5%;top:22px;height:7px;background:repeating-linear-gradient(90deg,var(--rail) 0 12px,transparent 12px 15px);border-radius:1px}
+.rail::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,var(--accent) 0 12px,transparent 12px 15px);transform-origin:left;transform:scaleX(0);animation:fill 14s linear infinite}
 .st{text-align:center;padding:0 4px}
-.st .node{width:14px;height:14px;border-radius:50%;background:var(--paper);border:3px solid var(--rail);margin:-52px auto 30px;position:relative;z-index:1;transition:border-color .3s,background .3s,transform .3s}
-.st.on .node{border-color:var(--accent);background:var(--accent);transform:scale(1.25)}
+.st .node{width:16px;height:16px;border-radius:50%;background:var(--paper);border:3px solid var(--rail);margin:-54px auto 28px;position:relative;z-index:1;transition:border-color .3s,background .3s,transform .3s}
+.st.on .node{border-color:var(--accent);background:var(--accent);transform:scale(1.2)}
 .st.done .node{border-color:var(--accent);background:var(--paper)}
 .st.live-on .node{border-color:var(--live);background:var(--live)}
+.st .rn{display:block;font-family:"Cinzel",Georgia,serif;font-weight:700;font-size:13px;letter-spacing:.12em;color:var(--ink-3);margin-bottom:2px;transition:color .3s}
+.st.on .rn,.st.done .rn{color:var(--accent)}
+.st.live-on .rn{color:var(--live)}
 .st h3{font-size:15px;letter-spacing:.01em}
 .st .sub{font-size:13px;color:var(--ink-3);margin-top:4px;line-height:1.35}
 .st .ico{height:64px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
@@ -91,52 +104,67 @@ nav a:hover,nav a:focus-visible{color:var(--ink);text-decoration:underline;text-
 .st .ico .bubble{fill:var(--paper);stroke:var(--ink-2);stroke-width:2}
 .st .ico .txt{fill:var(--ink-3)}
 .st .ico .tile{fill:var(--paper);stroke:var(--line);stroke-width:2;transition:fill .3s,stroke .3s}
+.st .ico .roll{fill:var(--gold-soft);stroke:var(--gold);stroke-width:1.6}
+.st .ico .seal{fill:var(--pin)}
 .st.on .ico .tile,.st.done .ico .tile{stroke:var(--accent)}
 .st.on .ico .tile{fill:var(--accent-soft)}
-.st .ico .svc{fill:var(--paper);stroke:var(--line);stroke-width:2;transition:fill .3s,stroke .3s}
+/* III: three columns rise, one per specialist */
+.st .ico .cap{fill:var(--paper);stroke:var(--line);stroke-width:1.6;transition:fill .3s,stroke .3s}
+.st .ico .shaft{fill:var(--paper);stroke:var(--line);stroke-width:1.6;transform-box:fill-box;transform-origin:50% 100%;transition:fill .3s,stroke .3s}
+.st .ico .flute{fill:var(--line)}
+.st.on .ico .cap,.st.on .ico .shaft,.st.done .ico .cap,.st.done .ico .shaft{stroke:var(--accent)}
+.st.on .ico .shaft{fill:var(--accent-soft);animation:rise .7s cubic-bezier(.2,.8,.2,1) both}
+.st.on .ico .c2 .shaft{animation-delay:.35s}
+.st.on .ico .c3 .shaft{animation-delay:.7s}
+/* IV: the temple stands and its lamp is lit */
+.st .ico .svc{fill:var(--paper);stroke:var(--line);stroke-width:1.6;transition:fill .3s,stroke .3s}
 .st.live-on .ico .svc{fill:var(--live-soft);stroke:var(--live)}
 .st .ico .led{fill:var(--line);transition:fill .3s}
 .st.live-on .ico .led{fill:var(--live)}
-/* the traveling brief card */
-.brief{position:absolute;top:-2px;left:12.5%;width:64px;height:44px;background:var(--card);border:1.5px solid var(--card-line);border-radius:4px;box-shadow:var(--shadow);transform:translate(-50%,0);animation:travel 14s cubic-bezier(.65,.05,.35,.95) infinite;z-index:2}
-.brief::before{content:"";position:absolute;top:-6px;left:50%;width:9px;height:9px;border-radius:50%;background:var(--pin);transform:translateX(-50%);box-shadow:0 1px 2px rgba(0,0,0,.35)}
-.brief i{display:block;height:3px;background:var(--card-line);border-radius:2px;margin:12px 8px 0}
+/* the traveling brief: a sealed scroll */
+.brief{position:absolute;top:-4px;left:12.5%;width:62px;height:42px;background:var(--card);border-block:1.5px solid var(--card-line);border-radius:2px;box-shadow:var(--shadow);transform:translate(-50%,0);animation:travel 14s cubic-bezier(.65,.05,.35,.95) infinite;z-index:2}
+.brief::before,.brief::after{content:"";position:absolute;left:-6px;right:-6px;height:6px;border-radius:3px;background:var(--gold)}
+.brief::before{top:-5px}.brief::after{bottom:-5px}
+.brief i{display:block;height:3px;background:var(--card-line);border-radius:2px;margin:9px 8px 0}
 .brief i+i{margin-top:5px;width:60%}
-.brief i+i+i{width:80%}
-.brief .stamp{position:absolute;right:4px;bottom:3px;font:600 8px/1 "IBM Plex Mono",monospace;letter-spacing:.06em;color:var(--live);opacity:0;animation:stamp 14s linear infinite}
+.brief i+i+i{width:78%}
+.brief .stamp{position:absolute;left:6px;bottom:4px;font:700 7px/1 "Cinzel",Georgia,serif;letter-spacing:.08em;color:var(--live);opacity:0;animation:stamp 14s linear infinite}
+.brief .seal{position:absolute;right:-9px;bottom:-10px;width:18px;height:18px;border-radius:50%;background:var(--pin);color:#F7DDA9;font:700 10px/18px "Cinzel",Georgia,serif;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,.35),inset 0 0 0 2px rgba(0,0,0,.15);opacity:0;animation:seal 14s linear infinite}
 @keyframes travel{0%,8%{left:12.5%}22%,30%{left:37.5%}48%,62%{left:62.5%}80%,100%{left:87.5%}}
 @keyframes fill{0%,8%{transform:scaleX(0)}22%,30%{transform:scaleX(.334)}48%,62%{transform:scaleX(.667)}80%,100%{transform:scaleX(1)}}
-@keyframes stamp{0%,79%{opacity:0}82%,100%{opacity:1}}
+@keyframes stamp{0%,83%{opacity:0}86%,100%{opacity:1}}
+@keyframes seal{0%,79%{opacity:0;transform:scale(2.2) rotate(-25deg)}82%{opacity:1;transform:scale(.88) rotate(0)}84%,100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes rise{from{transform:scaleY(.08)}to{transform:scaleY(1)}}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 .lanes{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:22px;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
 .lanes span{border-top:1px dashed var(--line);padding-top:8px;text-align:center}
-@media (max-width:560px){.st .sub{display:none}.st h3{font-size:13px}.lanes{display:none}}
+@media (max-width:560px){.st .sub{display:none}.st h3{font-size:13px}.lanes{display:none}.st svg{width:48px;height:42px}}
 @media (prefers-reduced-motion:reduce){
-  .brief,.rail::after,.status .dot,.brief .stamp{animation:none}
-  .brief{left:87.5%}.rail::after{transform:scaleX(1)}.brief .stamp{opacity:1}
+  .brief,.rail::after,.status .dot,.brief .stamp,.brief .seal,.st .ico .shaft{animation:none}
+  .brief{left:87.5%}.rail::after{transform:scaleX(1)}.brief .stamp,.brief .seal{opacity:1}
 }
 
 /* Sections */
 section{padding-block:56px 8px}
-.sec-head{display:grid;gap:12px;max-width:760px;margin-bottom:28px}
+.sec-head{display:grid;gap:12px;max-width:780px;margin-bottom:28px}
 .sec-head p{color:var(--ink-2);font-size:18px}
 .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
-.step{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:22px 22px 20px;display:grid;gap:10px;align-content:start}
-.step .k{font:600 12px/1 "IBM Plex Mono",monospace;letter-spacing:.08em;color:var(--accent)}
+.step{background:var(--paper);border:1px solid var(--line);border-top:3px solid var(--gold);border-radius:6px;padding:22px 22px 20px;display:grid;gap:10px;align-content:start}
+.step .k{font:700 13px/1 "Cinzel",Georgia,serif;letter-spacing:.12em;color:var(--accent);text-transform:uppercase}
 .step p{color:var(--ink-2);font-size:15.5px}
 .step code{font-size:13px;background:var(--ground);padding:2px 6px;border-radius:4px}
 .split{display:grid;grid-template-columns:minmax(0,1fr);gap:28px;align-items:start}
 @media (min-width:900px){.split{grid-template-columns:1fr 1fr}}
-.tree{background:var(--code-bg);color:var(--code-ink);border-radius:12px;padding:20px 22px;font-size:13.5px;line-height:1.65;overflow-x:auto;box-shadow:var(--shadow)}
+.tree{background:var(--code-bg);color:var(--code-ink);border-radius:6px;padding:20px 22px;font-size:13.5px;line-height:1.65;overflow-x:auto;box-shadow:var(--shadow);border-top:3px solid var(--gold)}
 .tree .d{color:var(--code-dim)}
-.tree .hl{color:var(--accent)}
+.tree .hl{color:var(--gold)}
 ul.plain{list-style:none;padding:0;margin:0;display:grid;gap:14px}
 ul.plain li{display:grid;grid-template-columns:22px 1fr;gap:12px;color:var(--ink-2);font-size:16px}
 ul.plain li::before{content:"";width:14px;height:14px;margin-top:5px;border:2.5px solid var(--live);border-radius:3px;background:var(--live-soft)}
 ul.plain b{color:var(--ink);font-weight:600}
 
 .providers{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px}
-.prov{border:1px solid var(--line);border-radius:12px;padding:20px;display:grid;gap:8px;background:var(--paper)}
+.prov{border:1px solid var(--line);border-radius:6px;padding:20px;display:grid;gap:8px;background:var(--paper)}
 .prov.now{border-color:var(--live);box-shadow:inset 0 0 0 1px var(--live)}
 .prov .tag{justify-self:start;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:4px 9px;border-radius:999px;background:var(--ground);color:var(--ink-3)}
 .prov.now .tag{background:var(--live-soft);color:var(--live)}
@@ -145,29 +173,36 @@ ul.plain b{color:var(--ink);font-weight:600}
 
 .price{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
 @media (min-width:760px){.price{grid-template-columns:1fr 1fr}}
-.tile{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:24px;display:grid;gap:8px;align-content:start}
+.tile{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:24px;display:grid;gap:8px;align-content:start}
 .tile.oss-tile{background:var(--ink);color:var(--ground);border-color:var(--ink)}
 .tile.oss-tile p{color:inherit;opacity:.85}
-.tile .big{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:clamp(36px,4vw,52px);line-height:1;letter-spacing:-.02em}
-.tile .big small{font-size:.38em;font-weight:600;letter-spacing:0;opacity:.8;margin-left:6px}
+.tile .big{font-family:"Cinzel",Georgia,serif;font-weight:700;font-size:clamp(36px,4vw,52px);line-height:1}
+.tile .big small{font-family:"IBM Plex Sans",sans-serif;font-size:.36em;font-weight:600;opacity:.8;margin-left:8px}
 .tile p{color:var(--ink-2);font-size:15.5px}
 .tile ul{margin:6px 0 0;padding-left:18px;color:var(--ink-2);font-size:15px;line-height:1.6}
 .fine{font-size:13.5px;color:var(--ink-3);margin-top:14px}
 
-.start{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:28px;display:grid;gap:18px;box-shadow:var(--shadow)}
-.start ol{margin:0;padding-left:22px;display:grid;gap:12px;color:var(--ink-2);font-size:16.5px}
+.start{background:var(--paper);border:1px solid var(--line);border-top:3px solid var(--gold);border-radius:8px;padding:28px;display:grid;gap:18px;box-shadow:var(--shadow)}
+.start ol{margin:0;padding-left:0;list-style:none;display:grid;gap:12px;color:var(--ink-2);font-size:16.5px;counter-reset:rn}
+.start ol li{display:grid;grid-template-columns:34px 1fr;gap:6px}
+.start ol li::before{font-family:"Cinzel",Georgia,serif;font-weight:700;color:var(--gold)}
+.start ol li:nth-child(1)::before{content:"I"}
+.start ol li:nth-child(2)::before{content:"II"}
+.start ol li:nth-child(3)::before{content:"III"}
 .start ol b{color:var(--ink)}
-.start pre{margin:0;background:var(--code-bg);color:var(--code-ink);border-radius:8px;padding:14px 16px;font-size:14px;overflow-x:auto}
-.start pre .p{color:var(--accent)}
-footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:14px;color:var(--ink-3)}
+.start pre{margin:0;background:var(--code-bg);color:var(--code-ink);border-radius:6px;padding:14px 16px;font-size:14px;overflow-x:auto}
+.start pre .p{color:var(--gold)}
+footer{margin-top:64px;padding-block:22px 28px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:14px;color:var(--ink-3)}
 footer a{color:var(--ink-2)}
+footer .roman{letter-spacing:.12em}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="laurel" viewBox="0 0 32 32"><ellipse cx="10.76" cy="27.76" rx="3.40" ry="1.15" transform="rotate(-206.0 10.76 27.76)"/><ellipse cx="11.63" cy="23.67" rx="3.40" ry="1.15" transform="rotate(-130.0 11.63 23.67)"/><ellipse cx="6.02" cy="23.93" rx="3.23" ry="1.09" transform="rotate(-178.0 6.02 23.93)"/><ellipse cx="8.58" cy="20.88" rx="3.23" ry="1.09" transform="rotate(-102.0 8.58 20.88)"/><ellipse cx="3.61" cy="18.40" rx="3.06" ry="1.03" transform="rotate(-150.0 3.61 18.40)"/><ellipse cx="7.11" cy="16.99" rx="3.06" ry="1.03" transform="rotate(-74.0 7.11 16.99)"/><ellipse cx="4.03" cy="12.45" rx="2.89" ry="0.98" transform="rotate(-122.0 4.03 12.45)"/><ellipse cx="7.57" cy="12.82" rx="2.89" ry="0.98" transform="rotate(-46.0 7.57 12.82)"/><ellipse cx="7.11" cy="7.42" rx="2.72" ry="0.92" transform="rotate(-94.0 7.11 7.42)"/><ellipse cx="9.88" cy="9.29" rx="2.72" ry="0.92" transform="rotate(-18.0 9.88 9.29)"/><ellipse cx="12.11" cy="4.40" rx="2.55" ry="0.86" transform="rotate(-66.0 12.11 4.40)"/><ellipse cx="13.58" cy="7.17" rx="2.55" ry="0.86" transform="rotate(10.0 13.58 7.17)"/><path d="M13.82 26.27A10.5 10.5 0 0 1 11.07 6.73" fill="none" stroke="currentColor" stroke-width="1.1"/><ellipse cx="20.37" cy="23.67" rx="3.40" ry="1.15" transform="rotate(-50.0 20.37 23.67)"/><ellipse cx="21.24" cy="27.76" rx="3.40" ry="1.15" transform="rotate(26.0 21.24 27.76)"/><ellipse cx="23.42" cy="20.88" rx="3.23" ry="1.09" transform="rotate(-78.0 23.42 20.88)"/><ellipse cx="25.98" cy="23.93" rx="3.23" ry="1.09" transform="rotate(-2.0 25.98 23.93)"/><ellipse cx="24.89" cy="16.99" rx="3.06" ry="1.03" transform="rotate(-106.0 24.89 16.99)"/><ellipse cx="28.39" cy="18.40" rx="3.06" ry="1.03" transform="rotate(-30.0 28.39 18.40)"/><ellipse cx="24.43" cy="12.82" rx="2.89" ry="0.98" transform="rotate(-134.0 24.43 12.82)"/><ellipse cx="27.97" cy="12.45" rx="2.89" ry="0.98" transform="rotate(-58.0 27.97 12.45)"/><ellipse cx="22.12" cy="9.29" rx="2.72" ry="0.92" transform="rotate(-162.0 22.12 9.29)"/><ellipse cx="24.89" cy="7.42" rx="2.72" ry="0.92" transform="rotate(-86.0 24.89 7.42)"/><ellipse cx="18.42" cy="7.17" rx="2.55" ry="0.86" transform="rotate(-190.0 18.42 7.17)"/><ellipse cx="19.89" cy="4.40" rx="2.55" ry="0.86" transform="rotate(-114.0 19.89 4.40)"/><path d="M18.18 26.27A10.5 10.5 0 0 0 20.93 6.73" fill="none" stroke="currentColor" stroke-width="1.1"/></symbol></defs></svg>
 <div class="wrap">
 
 <header class="top">
-  <div class="brand"><span class="mark" aria-hidden="true"></span>Shipwright</div>
+  <div class="brand"><svg aria-hidden="true"><use href="#laurel"/></svg>CONSUL</div>
   <nav aria-label="Sections">
     <a href="#how">How it works</a><a href="#get">What you get</a><a href="#where">Where it runs</a><a href="#cost">Cost</a><a href="#start">Start</a>
   </nav>
@@ -176,9 +211,9 @@ footer a{color:var(--ink-2)}
 
 <section class="hero" aria-labelledby="h1">
   <div>
-    <p class="eyebrow">Shipwright · a Claude Code toolkit</p>
-    <h1 id="h1" style="margin-top:14px">Describe it.<br>It ships.</h1>
-    <p class="lede">Say what you want your app to do, in plain words. Shipwright turns that into a plan, builds and tests every part, and puts it on the internet for you. You answer a question now and then. No coding.</p>
+    <p class="eyebrow">Consul · for Claude Code</p>
+    <h1 id="h1" style="margin-top:14px">Set the mandate.<span class="l2">Consul sees it through.</span></h1>
+    <p class="lede">Say what you want your app to do, in plain words. That is the mandate. Consul turns it into a plan, commands the specialists who build and test every part, and puts it on the internet for you. You answer a question now and then. No coding.</p>
     <div class="cmds mono" aria-label="Two commands">
       <div><span class="p">/spec create</span> "an invoice tracker for freelancers"</div>
       <div><span class="c"># it asks a few questions, then writes the plan</span></div>
@@ -187,38 +222,43 @@ footer a{color:var(--ink-2)}
     </div>
     <div class="hero-cta">
       <a class="btn primary" href="#start">Get started</a>
-      <a class="btn" href="https://github.com/nbdesai1992/shipwright">View on GitHub</a>
+      <a class="btn" href="https://github.com/nbdesai1992/consul">View on GitHub</a>
     </div>
   </div>
 
-  <div class="line" aria-label="Animated overview: a brief travels from describe to live">
+  <div class="line" role="img" aria-label="Animated overview: a sealed scroll travels a Roman road through four stations. I, describe: you say what you want. II, mandate: a plan you approve. III, build: three columns rise, one per specialist. IV, live: the temple stands, the scroll is sealed PROBATVM, checked and done.">
+    <svg class="wm" aria-hidden="true"><use href="#laurel"/></svg>
     <div class="line-head">
-      <span class="eyebrow">One brief, start to finish</span>
+      <span class="eyebrow">One mandate, start to finish</span>
       <span class="status mono" id="status"><span class="dot" aria-hidden="true"></span><span id="status-text">/spec create "…"</span></span>
     </div>
-    <div class="stations" id="stations">
-      <div class="rail" aria-hidden="true"></div>
-      <div class="brief" aria-hidden="true"><i></i><i></i><i></i><span class="stamp">DONE</span></div>
+    <div class="stations" id="stations" aria-hidden="true">
+      <div class="rail"></div>
+      <div class="brief"><i></i><i></i><i></i><span class="stamp">PROBATVM</span><span class="seal">C</span></div>
 
       <div class="st on" data-i="0">
         <div class="node"></div>
-        <div class="ico"><svg viewBox="0 0 64 56" aria-hidden="true"><path class="bubble" d="M8 8h48a4 4 0 0 1 4 4v22a4 4 0 0 1-4 4H26l-10 10v-10H8a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4z"/><rect class="txt" x="14" y="17" width="34" height="3" rx="1.5"/><rect class="txt" x="14" y="25" width="22" height="3" rx="1.5"/></svg></div>
-        <h3>Describe</h3><div class="sub">You say what you want. It asks a few questions.</div>
+        <div class="ico"><svg viewBox="0 0 64 56"><path class="bubble" d="M8 8h48a4 4 0 0 1 4 4v22a4 4 0 0 1-4 4H26l-10 10v-10H8a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4z"/><rect class="txt" x="14" y="17" width="34" height="3" rx="1.5"/><rect class="txt" x="14" y="25" width="22" height="3" rx="1.5"/></svg></div>
+        <span class="rn">I</span><h3>Describe</h3><div class="sub">You say what you want. It asks a few questions.</div>
       </div>
       <div class="st" data-i="1">
         <div class="node"></div>
-        <div class="ico"><svg viewBox="0 0 64 56" aria-hidden="true"><rect class="tile" x="6" y="4" width="16" height="48" rx="3"/><rect class="tile" x="24" y="4" width="16" height="48" rx="3"/><rect class="tile" x="42" y="4" width="16" height="48" rx="3"/></svg></div>
-        <h3>Plan</h3><div class="sub">A written plan you approve: what it must do, how we'll know it works.</div>
+        <div class="ico"><svg viewBox="0 0 64 56"><rect class="tile" x="14" y="9" width="36" height="38" rx="1"/><rect class="roll" x="9" y="4" width="46" height="7" rx="3.5"/><rect class="roll" x="9" y="45" width="46" height="7" rx="3.5"/><rect class="txt" x="20" y="18" width="24" height="2.5" rx="1"/><rect class="txt" x="20" y="24" width="18" height="2.5" rx="1"/><rect class="txt" x="20" y="30" width="21" height="2.5" rx="1"/><circle class="seal" cx="43" cy="39" r="4"/></svg></div>
+        <span class="rn">II</span><h3>Mandate</h3><div class="sub">A written plan you approve: what it must do, how we'll know it works.</div>
       </div>
       <div class="st" data-i="2">
         <div class="node"></div>
-        <div class="ico"><svg viewBox="0 0 64 56" aria-hidden="true"><rect class="tile" x="4" y="8" width="17" height="40" rx="3"/><rect class="tile" x="23.5" y="8" width="17" height="40" rx="3"/><rect class="tile" x="43" y="8" width="17" height="40" rx="3"/><rect class="txt" x="8" y="16" width="9" height="2.5" rx="1"/><rect class="txt" x="8" y="22" width="9" height="2.5" rx="1"/><rect class="txt" x="27.5" y="16" width="9" height="2.5" rx="1"/><rect class="txt" x="27.5" y="22" width="9" height="2.5" rx="1"/><rect class="txt" x="47" y="16" width="9" height="2.5" rx="1"/><rect class="txt" x="47" y="22" width="9" height="2.5" rx="1"/></svg></div>
-        <h3>Build</h3><div class="sub">Three specialists write the code, test it, and design the screens.</div>
+        <div class="ico"><svg viewBox="0 0 64 56">
+          <g class="c1"><rect class="cap" x="3" y="6" width="16" height="4" rx="1"/><rect class="shaft" x="5" y="10" width="12" height="34"/><rect class="flute" x="9" y="13" width="1.4" height="28"/><rect class="flute" x="12.6" y="13" width="1.4" height="28"/><rect class="cap" x="3" y="44" width="16" height="5" rx="1"/></g>
+          <g class="c2"><rect class="cap" x="24" y="6" width="16" height="4" rx="1"/><rect class="shaft" x="26" y="10" width="12" height="34"/><rect class="flute" x="30" y="13" width="1.4" height="28"/><rect class="flute" x="33.6" y="13" width="1.4" height="28"/><rect class="cap" x="24" y="44" width="16" height="5" rx="1"/></g>
+          <g class="c3"><rect class="cap" x="45" y="6" width="16" height="4" rx="1"/><rect class="shaft" x="47" y="10" width="12" height="34"/><rect class="flute" x="51" y="13" width="1.4" height="28"/><rect class="flute" x="54.6" y="13" width="1.4" height="28"/><rect class="cap" x="45" y="44" width="16" height="5" rx="1"/></g>
+        </svg></div>
+        <span class="rn">III</span><h3>Build</h3><div class="sub">Three specialists write the code, test it, and design the screens.</div>
       </div>
       <div class="st" data-i="3">
         <div class="node"></div>
-        <div class="ico"><svg viewBox="0 0 64 56" aria-hidden="true"><rect class="svc" x="6" y="6" width="52" height="18" rx="4"/><rect class="svc" x="6" y="32" width="52" height="18" rx="4"/><circle class="led" cx="16" cy="15" r="4"/><circle class="led" cx="16" cy="41" r="4"/><rect class="txt" x="26" y="13.5" width="24" height="3" rx="1.5"/><rect class="txt" x="26" y="39.5" width="24" height="3" rx="1.5"/></svg></div>
-        <h3>Live</h3><div class="sub">On the internet, on Render, checked and working.</div>
+        <div class="ico"><svg viewBox="0 0 64 56"><path class="svc" d="M4 16L32 3L60 16Z"/><circle class="led" cx="32" cy="11.5" r="2.6"/><rect class="svc" x="4" y="16" width="56" height="4"/><rect class="svc" x="9" y="20" width="7" height="24"/><rect class="svc" x="21" y="20" width="7" height="24"/><rect class="svc" x="36" y="20" width="7" height="24"/><rect class="svc" x="48" y="20" width="7" height="24"/><rect class="svc" x="2" y="44" width="60" height="4"/><rect class="svc" x="0" y="48" width="64" height="4"/></svg></div>
+        <span class="rn">IV</span><h3>Live</h3><div class="sub">On the internet, on Render, checked and working.</div>
       </div>
     </div>
     <div class="lanes" aria-hidden="true"><span>to do</span><span>in progress</span><span>in progress</span><span>done</span></div>
@@ -227,30 +267,30 @@ footer a{color:var(--ink-2)}
 
 <section id="how" aria-labelledby="how-h">
   <div class="sec-head">
-    <p class="eyebrow">How it works</p>
+    <p class="eyebrow"><span class="rn">I</span>How it works</p>
     <h2 id="how-h">Your plan is a card on a board. You can always see where it is.</h2>
     <p>Every project has a simple board: to do, in progress, needs you, done. Your plan moves across it as the work happens, and everything that was done gets written on the card. Close your laptop, come back tomorrow, and it picks up exactly where the card says.</p>
   </div>
   <div class="steps">
-    <div class="step"><span class="k">1 · describe</span><h3>You talk, it writes the plan</h3><p>Say what the app should do and who it's for. It asks a few follow-up questions, then writes a plan in plain language: a numbered list of what the app must do and how we'll know each part works. You approve it before anything is built.</p></div>
-    <div class="step"><span class="k">2 · go</span><h3>It gets to work</h3><p>Paste one line and it starts. It breaks the plan into small jobs, sets up the servers first, then works through the list. A separate checker confirms when the plan is truly finished, so it can't run forever.</p></div>
-    <div class="step"><span class="k">3 · build</span><h3>Three specialists, with proof</h3><p>One writes the behind-the-scenes code and tests it against a real database. One designs the screens to fit your product's world and checks them by taking screenshots. One publishes each piece and confirms it's really live.</p></div>
-    <div class="step"><span class="k">4 · done</span><h3>Done means checked</h3><p>Nothing is marked done without evidence. If a decision truly needs you, the card waits in "needs you" with a short question and options. Answer in the chat and it continues. Waiting is never dressed up as finished.</p></div>
+    <div class="step"><span class="k">I · describe</span><h3>You talk, it writes the plan</h3><p>Say what the app should do and who it's for. It asks a few follow-up questions, then writes a plan in plain language: a numbered list of what the app must do and how we'll know each part works. You approve it before anything is built.</p></div>
+    <div class="step"><span class="k">II · command</span><h3>It takes command</h3><p>Paste one line and it starts. It breaks the plan into small jobs, sets up the servers first, then works through the list. A separate checker confirms when the plan is truly finished, so it can't run forever.</p></div>
+    <div class="step"><span class="k">III · build</span><h3>Three specialists, with proof</h3><p>One writes the behind-the-scenes code and tests it against a real database. One designs the screens to fit your product's world and checks them by taking screenshots. One publishes each piece and confirms it's really live.</p></div>
+    <div class="step"><span class="k">IV · done</span><h3>Done means checked</h3><p>Nothing is marked done without evidence. If a decision truly needs you, the card waits in "needs you" with a short question and options. Answer in the chat and it continues. Waiting is never dressed up as finished.</p></div>
   </div>
 </section>
 
 <section id="get" aria-labelledby="get-h">
   <div class="sec-head">
-    <p class="eyebrow">What you get</p>
+    <p class="eyebrow"><span class="rn">II</span>What you get</p>
     <h2 id="get-h">Your own project, set up and already online.</h2>
     <p>Before you've described a single feature, you already have a real, working starting point. Everything below is created for you in about five minutes.</p>
   </div>
   <div class="split">
     <ul class="plain">
-      <li><span></span><span><b>Your code, safely stored on GitHub</b> — a private home for the project that keeps every version. You own it.</span></li>
-      <li><span></span><span><b>Your app, already online</b> — a database and two small servers on Render, created for you. No clicking around in dashboards; Shipwright does it.</span></li>
-      <li><span></span><span><b>Claude Code, set up inside the project</b> — with the skills and specialists it needs, and guardrails that keep it honest about progress.</span></li>
-      <li><span></span><span><b>A health check and an off switch</b> — one command tells you exactly what's wrong and how to fix it; another deletes everything when you're done, and the bill stops.</span></li>
+      <li><span></span><span><b>Your code, safely stored on GitHub.</b> A private home for the project that keeps every version. You own it.</span></li>
+      <li><span></span><span><b>Your app, already online.</b> A database and two small servers on Render, created for you. No clicking around in dashboards; Consul does it.</span></li>
+      <li><span></span><span><b>Claude Code, set up inside the project.</b> With the skills and specialists it needs, and guardrails that keep it honest about progress.</span></li>
+      <li><span></span><span><b>A health check and an off switch.</b> One command tells you exactly what's wrong and how to fix it; another deletes everything when you're done, and the bill stops.</span></li>
     </ul>
     <pre class="tree mono" aria-label="What the created project contains"><span class="d">your-app/</span>
 ├── backend/            <span class="d"># the engine: data and rules</span>
@@ -266,25 +306,25 @@ footer a{color:var(--ink-2)}
 
 <section id="where" aria-labelledby="where-h">
   <div class="sec-head">
-    <p class="eyebrow">Where it runs</p>
-    <h2 id="where-h">Render today. More clouds on the way.</h2>
-    <p>Your app has to live on someone's computers. That's what a cloud provider is. Shipwright works with Render today because it's the simplest place to get a database and a website running with nothing to click.</p>
+    <p class="eyebrow"><span class="rn">III</span>Where it runs</p>
+    <h2 id="where-h">Render today. More provinces on the way.</h2>
+    <p>Your app has to live on someone's computers. That's what a cloud provider is. Consul works with Render today because it's the simplest place to get a database and a website running with nothing to click.</p>
   </div>
   <div class="providers">
     <div class="prov now"><span class="tag">Available now</span><h3>Render</h3><p>The database and both servers are created for you and updated automatically whenever the code changes. Locked to your account so it can never touch anyone else's.</p></div>
     <div class="prov"><span class="tag">Coming soon</span><h3>AWS</h3><p>Same plan, same specialists, same board. Just a different place for the app to live.</p></div>
-    <div class="prov"><span class="tag">Coming soon</span><h3>Other cloud providers</h3><p>Adding a provider doesn't change how you use Shipwright. You describe, it builds.</p></div>
+    <div class="prov"><span class="tag">Coming soon</span><h3>Other cloud providers</h3><p>Adding a provider doesn't change how you use Consul. You describe, it builds.</p></div>
   </div>
 </section>
 
 <section id="cost" aria-labelledby="cost-h">
   <div class="sec-head">
-    <p class="eyebrow">Cost</p>
-    <h2 id="cost-h">Shipwright is free. You only pay for the computers your app runs on.</h2>
+    <p class="eyebrow"><span class="rn">IV</span>Cost</p>
+    <h2 id="cost-h">Consul is free. You only pay for the computers your app runs on.</h2>
   </div>
   <div class="price">
     <div class="tile oss-tile">
-      <span class="eyebrow" style="color:inherit;opacity:.7">Shipwright</span>
+      <span class="eyebrow" style="color:inherit;opacity:.7">Consul</span>
       <div class="big">$0<small>free, open source</small></div>
       <p>Anyone can use it, read it, and improve it. There's no account to create, no plan to pick, nothing to license. You bring Claude Code, which you already have.</p>
     </div>
@@ -300,29 +340,29 @@ footer a{color:var(--ink-2)}
 
 <section id="start" aria-labelledby="start-h">
   <div class="sec-head">
-    <p class="eyebrow">Get started</p>
+    <p class="eyebrow"><span class="rn">V</span>Get started</p>
     <h2 id="start-h">Three steps. Claude does the rest.</h2>
   </div>
   <div class="start">
     <ol>
-      <li><b>Get Shipwright.</b> Paste one line into Terminal on your Mac.</li>
-      <li><b>Open Claude Code in it and type <code>/start</code>.</b> Claude checks your Mac, walks you through creating your GitHub and Render accounts one step at a time, and asks four questions about your app.</li>
-      <li><b>Describe your app.</b> Your project now exists and is online. Open it and tell Claude what to build.</li>
+      <li><span><b>Get Consul.</b> Paste one line into Terminal on your Mac.</span></li>
+      <li><span><b>Open Claude Code in it and type <code>/start</code>.</b> Claude checks your Mac, walks you through creating your GitHub and Render accounts one step at a time, and asks four questions about your app.</span></li>
+      <li><span><b>Describe your app.</b> Your project now exists and is online. Open it and tell Claude what to build.</span></li>
     </ol>
     <p style="color:var(--ink-2);font-size:15.5px">You'll need a Mac, Claude Code, and a credit card for Render. The whole first-time setup takes about twenty minutes, and most of that is creating accounts.</p>
-    <pre class="mono">git clone https://github.com/nbdesai1992/shipwright.git ~/shipwright
-cd ~/shipwright && claude
+    <pre class="mono">git clone https://github.com/nbdesai1992/consul.git ~/consul
+cd ~/consul && claude
 <span class="p">/start</span></pre>
     <div class="hero-cta" style="margin-top:0">
-      <a class="btn primary" href="https://github.com/nbdesai1992/shipwright/blob/main/GETTING-STARTED.md">Read the getting-started guide</a>
-      <a class="btn" href="https://github.com/nbdesai1992/shipwright">GitHub</a>
+      <a class="btn primary" href="https://github.com/nbdesai1992/consul/blob/main/GETTING-STARTED.md">Read the getting-started guide</a>
+      <a class="btn" href="https://github.com/nbdesai1992/consul">GitHub</a>
     </div>
   </div>
 </section>
 
 <footer>
-  <span>Shipwright · open source · Describe it. It ships.</span>
-  <span><a href="https://github.com/nbdesai1992/shipwright">github.com/nbdesai1992/shipwright</a></span>
+  <span><span class="roman">CONSUL</span> · open source · Set the mandate. Consul sees it through.</span>
+  <span><a href="https://github.com/nbdesai1992/consul">github.com/nbdesai1992/consul</a> · <span class="roman">MMXXVI</span></span>
 </footer>
 
 </div>
@@ -333,21 +373,25 @@ cd ~/shipwright && claude
   var sts = Array.prototype.slice.call(document.querySelectorAll('.st'));
   var text = document.getElementById('status-text');
   var dot = document.querySelector('.status .dot');
-  // Keyframe timings (fractions of the 14s loop) — match the CSS `travel` animation.
+  // Keyframe timings (fractions of the 14s loop); they match the CSS `travel` animation.
   var steps = [
     {at:0.00, i:0, msg:'You: "an invoice tracker for freelancers"'},
     {at:0.08, i:0, msg:'Claude: who uses it? what makes it done? (2 questions)'},
-    {at:0.22, i:1, msg:'Plan written: 7 things the app must do. You approve.'},
-    {at:0.30, i:1, msg:'Work begins. Plan moves to "in progress".'},
-    {at:0.48, i:2, msg:'Servers and database set up on Render.'},
+    {at:0.22, i:1, msg:'Mandate written: 7 things the app must do. You approve.'},
+    {at:0.30, i:1, msg:'Consul takes command. The card moves to "in progress".'},
+    {at:0.48, i:2, msg:'Servers and database raised on Render.'},
     {at:0.53, i:2, msg:'Engine built · 14 of 14 tests passing on the real database'},
     {at:0.58, i:2, msg:'Screens designed · checked by screenshot'},
-    {at:0.62, i:2, msg:'Published · new version is live'},
+    {at:0.62, i:2, msg:'Published · the new version is live'},
     {at:0.80, i:3, msg:'Both servers answer: healthy'},
-    {at:0.86, i:3, msg:'✓ Done. Your invoice tracker is live.'}
+    {at:0.86, i:3, msg:'✓ Probatum. Checked, and your invoice tracker is live.'}
   ];
+  var last = null;
   function paint(k){
-    sts.forEach(function(s,idx){
+    if(k === last) return;
+    var station = !last || last.i !== k.i;
+    last = k;
+    if(station) sts.forEach(function(s,idx){
       s.classList.remove('on','done','live-on');
       if(idx<k.i) s.classList.add('done');
       if(idx===k.i) s.classList.add(k.i===3?'live-on':'on');

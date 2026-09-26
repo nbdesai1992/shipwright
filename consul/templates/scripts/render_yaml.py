@@ -1,6 +1,6 @@
 """
 render_yaml.py — minimal reader for the project's render.yaml (installed by
-shipwright onboarding into .claude/scripts/; shared by preflight.py and
+consul onboarding into .claude/scripts/; shared by preflight.py and
 provision.py).
 
 Not a YAML parser. It understands the shape onboarding generates plus
@@ -20,7 +20,7 @@ lists, scalar fields on each item, and `envVars:` entries of the forms
     - fromGroup: my-group
 
 Anything it does not recognise is ignored rather than raising, so a richer
-blueprint still parses down to what the factory needs.
+blueprint still parses down to what Consul needs.
 """
 
 import re

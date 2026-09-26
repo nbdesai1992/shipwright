@@ -1,5 +1,5 @@
 #!/bin/bash
-# brief-progress-guard.sh — Stop hook (installed by shipwright onboarding)
+# brief-progress-guard.sh — Stop hook (installed by consul onboarding)
 #
 # Deterministically enforces brief documentation: if a brief is active in
 # briefs/2-active/ and its file was not modified during this turn, block the
